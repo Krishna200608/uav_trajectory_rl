@@ -94,8 +94,8 @@ Algorithm 1, line 15, lists `r_n = r_n,1+r_n,2+r_n,3+r_n,4+r_n,5` — **omits r_
 | M4 | UAV energy/propulsion model (eq. 15–16) | M0 | **Done — reviewed, approved (hand-verified numerically)** |
 | M5 | MDP env wrapper: state/action/reward/step (eq. 17–29) | M1–M4 | **Done — reviewed, approved (Claude hand-verified all 6 reward terms exactly, incl. xy-cancellation and terminal-arrival edge cases)** |
 | M6 | Prior-knowledge exploration policy (eq. 30–31) | M5 | **Done — reviewed, approved (un-normalization boundary cases hand-verified, incl. R_ex==R_rand edge)** |
-| M7 | TD3 networks + replay buffer | M0 | **Implemented — pending review** |
-| M8 | TD3 update rules: clipped double-Q, delayed update, target smoothing (eq. 32–38) | M7 | Not started |
+| M7 | TD3 networks + replay buffer | M0 | **Done — reviewed, approved (shapes, q1_forward consistency, and circular-buffer overwrite hand-verified)** |
+| M8 | TD3 update rules: clipped double-Q, delayed update, target smoothing (eq. 32–38) | M7 | **Implemented — pending review** |
 | M9 | Training loop / full Algorithm 1 | M5, M6, M7, M8 | Not started |
 | M10 | Baseline: TDPK | M5 | Not started |
 | M11 | Baseline: Dueling DQL | M5 | Not started |

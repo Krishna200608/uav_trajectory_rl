@@ -100,20 +100,22 @@ uav_trajectory_rl/
 |       |-- channel_model.py            # LoS/NLoS path loss and Shannon rate (eq. 8-14)
 |       |-- config.py                   # System constants, physical bounds, and RL parameters
 |       |-- energy_model.py             # Rotary-wing propulsion power and energy (eq. 15-16)
-|       |-- mdp_environment.py          # Continuous MDP environment and 6 reward terms (eq. 17-29)
-|       |-- prior_knowledge_policy.py   # Heuristic PK generator and action dispatcher (eq. 30-31)
-|       |-- td3_networks.py             # TD3 actor, twin-critic networks, and replay buffer (eq. 32-38)
-|       |-- uav_kinematics.py           # 3D spherical kinematics and acceleration capping (eq. 1-3)
-|       \-- user_mobility.py            # Gauss-Markov ground user swarm mobility (eq. 4-7)
-\-- tests/
-    |-- __init__.py
-    |-- test_channel_model.py           # Channel attenuation and transmission rate tests
-    |-- test_energy_model.py            # Power components and hovering energy tests
-    |-- test_mdp_environment.py         # State dimensionality and MDP transition tests
-    |-- test_prior_knowledge_policy.py  # Action generation, un-normalization, and dispatch tests
-    |-- test_td3_networks.py            # Actor bounds, twin-critic equality, and buffer overwrite tests
-    |-- test_uav_kinematics.py          # Spherical motion updates and acceleration limits tests
-    \-- test_user_mobility.py           # User swarm bounds and Gauss-Markov step tests
+│       ├── mdp_environment.py          # Continuous MDP environment and 6 reward terms (eq. 17-29)
+│       ├── prior_knowledge_policy.py   # Heuristic PK generator and action dispatcher (eq. 30-31)
+│       ├── td3_agent.py                # TD3 agent with clipped double-Q and delayed updates (eq. 32-38)
+│       ├── td3_networks.py             # TD3 actor, twin-critic networks, and replay buffer (eq. 32-38)
+│       ├── uav_kinematics.py           # 3D spherical kinematics and acceleration capping (eq. 1-3)
+│       └── user_mobility.py            # Gauss-Markov ground user swarm mobility (eq. 4-7)
+└── tests/
+    ├── __init__.py
+    ├── test_channel_model.py           # Channel attenuation and transmission rate tests
+    ├── test_energy_model.py            # Power components and hovering energy tests
+    ├── test_mdp_environment.py         # State dimensionality and MDP transition tests
+    ├── test_prior_knowledge_policy.py  # Action generation, un-normalization, and dispatch tests
+    ├── test_td3_agent.py               # Target computation, delayed updates, and checkpointing tests
+    ├── test_td3_networks.py            # Actor bounds, twin-critic equality, and buffer overwrite tests
+    ├── test_uav_kinematics.py          # Spherical motion updates and acceleration limits tests
+    └── test_user_mobility.py           # User swarm bounds and Gauss-Markov step tests
 ```
 
 ## Implementation status
@@ -127,8 +129,8 @@ uav_trajectory_rl/
 - [x] M4 -- UAV energy and propulsion model (eq. 15-16)
 - [x] M5 -- MDP env wrapper -- state, action, 6-term reward, step (eq. 17-29)
 - [x] M6 -- Prior-knowledge exploration policy (eq. 30-31)
-- [ ] M7 -- TD3 networks and replay buffer (implemented, pending review)
-- [ ] M8 -- TD3 update rules (eq. 32-38)
+- [x] M7 -- TD3 networks and replay buffer
+- [ ] M8 -- TD3 update rules (eq. 32-38; implemented, pending review)
 - [ ] M9 -- Training loop (Algorithm 1)
 - [ ] M10 -- Baseline: TDPK
 - [ ] M11 -- Baseline: Dueling DQL
@@ -147,8 +149,8 @@ uav_trajectory_rl/
 | M4 | `energy_model.py` | Rotary-wing propulsion energy (eq. 15-16) | Done (reviewed, approved) |
 | M5 | `mdp_environment.py` | Full MDP env and 6 reward terms (eq. 17-29) | Done (reviewed, approved) |
 | M6 | `prior_knowledge_policy.py` | PK guidance and action dispatch (eq. 30-31) | Done (reviewed, approved) |
-| M7 | `src/uav_trajectory_rl/td3_networks.py` | Actor-critic networks and replay buffer | Implemented (pending review) |
-| M8 | `td3_agent.py` | Clipped double-Q and target smoothing (eq. 32-38) | Not started |
+| M7 | `td3_networks.py` | Actor-critic networks and replay buffer | Done (reviewed, approved) |
+| M8 | `src/uav_trajectory_rl/td3_agent.py` | Clipped double-Q and target smoothing (eq. 32-38) | Implemented (pending review) |
 | M9 | `train.py` | Training loop (Algorithm 1) | Not started |
 | M10-M13 | Baselines | TDPK, Dueling DQL, PPO, Greedy | Not started |
 | M14 | Evaluation | Plotting suite (Figs. 4-12, Tables IV-VI) | Not started |
