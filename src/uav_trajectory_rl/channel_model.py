@@ -20,30 +20,17 @@ import math
 from typing import Sequence, Union
 import numpy as np
 
-try:
-    from uav_trajectory_rl.config import (
-        B1,
-        B2,
-        B_U_HZ,
-        ETA_LOS_DB,
-        ETA_NLOS_DB,
-        FC_HZ,
-        N0_DBM_HZ,
-        P_K_DBM,
-        VC,
-    )
-except ImportError:
-    from config import (
-        B1,
-        B2,
-        B_U_HZ,
-        ETA_LOS_DB,
-        ETA_NLOS_DB,
-        FC_HZ,
-        N0_DBM_HZ,
-        P_K_DBM,
-        VC,
-    )
+from uav_trajectory_rl.config import (
+    B1,
+    B2,
+    B_U_HZ,
+    ETA_LOS_DB,
+    ETA_NLOS_DB,
+    FC_HZ,
+    N0_DBM_HZ,
+    P_K_DBM,
+    VC,
+)
 
 
 def los_probability(
@@ -287,49 +274,3 @@ def total_transmission_rate(
 
     return float(total_rate)
 
-
-if __name__ == "__main__":
-    print("=" * 60)
-    print("Air-to-Ground (A2G) Channel Model Sanity Check")
-    print("=" * 60)
-
-    uav_test_pos = np.array([300.0, 300.0, 100.0])
-    user_test_pos = np.array([250.0, 280.0, 0.0])
-
-    dx = uav_test_pos[0] - user_test_pos[0]
-    dy = uav_test_pos[1] - user_test_pos[1]
-    h_dist = math.sqrt(dx**2 + dy**2)
-    z_diff = uav_test_pos[2] - user_test_pos[2]
-    r_3d = math.sqrt(h_dist**2 + z_diff**2)
-
-    p_los = los_probability(z_diff, h_dist)
-    p_nlos = nlos_probability(p_los)
-    pl_los = path_loss_los(r_3d)
-    pl_nlos = path_loss_nlos(r_3d)
-    pl_avg = average_path_loss(z_diff, h_dist)
-    single_user_rate = transmission_rate(uav_test_pos, user_test_pos, num_users_k=1)
-
-    print(f"UAV Position:        {uav_test_pos} m")
-    print(f"User Position:       {user_test_pos} m")
-    print(f"Horizontal Distance: {h_dist:.2f} m")
-    print(f"3D Propagation Dist: {r_3d:.2f} m")
-    print(f"LoS Probability:     {p_los:.4f} ({p_los * 100:.2f}%)")
-    print(f"NLoS Probability:    {p_nlos:.4f} ({p_nlos * 100:.2f}%)")
-    print(f"LoS Path Loss:       {pl_los:.2f} dB")
-    print(f"NLoS Path Loss:      {pl_nlos:.2f} dB")
-    print(f"Average Path Loss:   {pl_avg:.2f} dB")
-    print(f"Transmission Rate:   {single_user_rate:,.2f} bps ({single_user_rate / 1e6:.2f} Mbps)")
-
-    # Multiple users sum rate check
-    users_group = np.array([
-        [250.0, 280.0, 0.0],
-        [320.0, 310.0, 0.0],
-        [400.0, 200.0, 0.0],
-        [150.0, 450.0, 0.0],
-    ])
-    sum_rate = total_transmission_rate(uav_test_pos, users_group)
-    print(f"\nTotal Rate for {len(users_group)} users: {sum_rate:,.2f} bps ({sum_rate / 1e6:.2f} Mbps)")
-
-    assert p_los > 0.0 and p_los <= 1.0, "LoS probability out of bounds"
-    assert single_user_rate > 0.0, "Transmission rate should be positive"
-    print("\nChannel Model verification PASSED successfully!")

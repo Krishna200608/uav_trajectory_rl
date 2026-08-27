@@ -17,32 +17,18 @@ Key Physical Components:
 import math
 from typing import Optional
 
-try:
-    from uav_trajectory_rl.config import (
-        DELTA,
-        UAV_A,
-        UAV_C,
-        UAV_D0,
-        UAV_P0,
-        UAV_RHO,
-        UAV_S,
-        UAV_SFP,
-        UAV_UTIP,
-        UAV_W,
-    )
-except ImportError:
-    from config import (
-        DELTA,
-        UAV_A,
-        UAV_C,
-        UAV_D0,
-        UAV_P0,
-        UAV_RHO,
-        UAV_S,
-        UAV_SFP,
-        UAV_UTIP,
-        UAV_W,
-    )
+from uav_trajectory_rl.config import (
+    DELTA,
+    UAV_A,
+    UAV_C,
+    UAV_D0,
+    UAV_P0,
+    UAV_RHO,
+    UAV_S,
+    UAV_SFP,
+    UAV_UTIP,
+    UAV_W,
+)
 
 
 def induced_velocity_hover(
@@ -191,32 +177,3 @@ def energy_consumption(
     power_w = propulsion_power(v_n=v_n, lam_n=lam_n, **kwargs)
     return float(power_w * delta)
 
-
-if __name__ == "__main__":
-    print("=" * 60)
-    print("UAV Propulsion Power & Energy Model Demo")
-    print("=" * 60)
-
-    test_v = 10.0            # m/s
-    test_lam = 0.25 * math.pi # pi / 4 rad
-
-    v0_derived = induced_velocity_hover()
-    power_watts = propulsion_power(test_v, test_lam)
-    energy_joules = energy_consumption(test_v, test_lam)
-
-    print(f"Rotor Induced Velocity in Hover (V0): {v0_derived:.4f} m/s")
-    print(f"Flight Speed (v_n):                   {test_v:.2f} m/s")
-    print(f"Polar Angle (lambda_n):               {test_lam:.4f} rad ({test_lam * 180 / math.pi:.1f} deg)")
-    print(f"Propulsion Power (P_n):               {power_watts:.2f} Watts")
-    print(f"Energy for delta={DELTA:.1f}s (E_n):          {energy_joules:.2f} Joules")
-
-    # Sanity checks
-    assert v0_derived > 0.0, "Hover velocity must be positive"
-    assert power_watts > 0.0, "Propulsion power must be positive"
-    assert energy_joules > 0.0, "Energy consumption must be positive"
-
-    # Hover comparison (v = 0, lam = pi/2)
-    hover_power = propulsion_power(0.0, 0.5 * math.pi)
-    print(f"\nHover Power (v=0, lam=pi/2):          {hover_power:.2f} Watts")
-
-    print("\nEnergy Model verification PASSED successfully!")

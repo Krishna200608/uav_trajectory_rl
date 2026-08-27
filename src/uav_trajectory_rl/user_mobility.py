@@ -12,10 +12,7 @@ import math
 from typing import Optional, Tuple
 import numpy as np
 
-try:
-    from uav_trajectory_rl.config import DELTA, OMEGA, SIGMA1, SIGMA2
-except ImportError:
-    from config import DELTA, OMEGA, SIGMA1, SIGMA2
+from uav_trajectory_rl.config import DELTA, OMEGA, SIGMA1, SIGMA2
 
 
 class UserSwarm:
@@ -167,30 +164,3 @@ class UserSwarm:
         """Return current user directions array of shape (K,)."""
         return self.directions.copy()
 
-
-if __name__ == "__main__":
-    print("=" * 60)
-    print("User Mobility (Gauss-Markov) Demo")
-    print("=" * 60)
-
-    num_users = 10
-    area = (0.0, 600.0, 0.0, 600.0)
-    rng_seed = 42
-    rng = np.random.default_rng(rng_seed)
-
-    swarm = UserSwarm(k=num_users, area_bounds=area, rng=rng)
-
-    print(f"Initialized {num_users} users in area {area}")
-    print("\nInitial Positions (Step 0):")
-    init_pos = swarm.get_positions()
-    for idx, (x, y) in enumerate(init_pos):
-        print(f"  User {idx:02d}: x = {x:6.2f} m, y = {y:6.2f} m, v = {swarm.velocities[idx]:.2f} m/s, theta = {swarm.directions[idx]:.2f} rad")
-
-    num_steps = 5
-    for step_num in range(1, num_steps + 1):
-        pos = swarm.step()
-        print(f"\n--- Step {step_num} Positions ---")
-        for idx in range(num_users):
-            print(f"  User {idx:02d}: x = {pos[idx, 0]:6.2f} m, y = {pos[idx, 1]:6.2f} m, v = {swarm.velocities[idx]:.2f} m/s, theta = {swarm.directions[idx]:.2f} rad")
-
-    print("\nGauss-Markov UserSwarm simulation completed successfully!")

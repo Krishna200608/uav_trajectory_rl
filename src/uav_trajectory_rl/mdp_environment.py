@@ -22,76 +22,40 @@ import math
 from typing import Any, Dict, Optional, Tuple, Union
 import numpy as np
 
-try:
-    from uav_trajectory_rl.config import (
-        AC_MAX,
-        ARRIVAL_THRESHOLD_M,
-        C_AC,
-        C_AR,
-        C_EN,
-        C_H,
-        C_LACK,
-        C_NEAR,
-        C_NR,
-        C_TH,
-        DELTA,
-        N_SLOTS,
-        Q_END,
-        Q_START,
-        T_MAX,
-        V_MAX,
-        X_MAX,
-        X_MIN,
-        Y_MAX,
-        Y_MIN,
-        Z_MAX,
-        Z_MIN,
-    )
-    from uav_trajectory_rl.uav_kinematics import (
-        apply_acceleration_constraint,
-        step_uav_position,
-    )
-    from uav_trajectory_rl.user_mobility import UserSwarm
-    from uav_trajectory_rl.channel_model import (
-        los_probability,
-        total_transmission_rate,
-    )
-    from uav_trajectory_rl.energy_model import energy_consumption
-except ImportError:
-    from config import (
-        AC_MAX,
-        ARRIVAL_THRESHOLD_M,
-        C_AC,
-        C_AR,
-        C_EN,
-        C_H,
-        C_LACK,
-        C_NEAR,
-        C_NR,
-        C_TH,
-        DELTA,
-        N_SLOTS,
-        Q_END,
-        Q_START,
-        T_MAX,
-        V_MAX,
-        X_MAX,
-        X_MIN,
-        Y_MAX,
-        Y_MIN,
-        Z_MAX,
-        Z_MIN,
-    )
-    from uav_kinematics import (
-        apply_acceleration_constraint,
-        step_uav_position,
-    )
-    from user_mobility import UserSwarm
-    from channel_model import (
-        los_probability,
-        total_transmission_rate,
-    )
-    from energy_model import energy_consumption
+from uav_trajectory_rl.config import (
+    AC_MAX,
+    ARRIVAL_THRESHOLD_M,
+    C_AC,
+    C_AR,
+    C_EN,
+    C_H,
+    C_LACK,
+    C_NEAR,
+    C_NR,
+    C_TH,
+    DELTA,
+    N_SLOTS,
+    Q_END,
+    Q_START,
+    T_MAX,
+    V_MAX,
+    X_MAX,
+    X_MIN,
+    Y_MAX,
+    Y_MIN,
+    Z_MAX,
+    Z_MIN,
+)
+from uav_trajectory_rl.uav_kinematics import (
+    apply_acceleration_constraint,
+    step_uav_position,
+)
+from uav_trajectory_rl.user_mobility import UserSwarm
+from uav_trajectory_rl.channel_model import (
+    los_probability,
+    total_transmission_rate,
+)
+from uav_trajectory_rl.energy_model import energy_consumption
 
 
 class UAVTrajectoryEnv:
@@ -481,87 +445,3 @@ class UAVTrajectoryEnv:
         """
         return -self.c_h if height_violated else 0.0
 
-
-if __name__ == "__main__":
-    print("=" * 70)
-    print("MDP Environment (UAVTrajectoryEnv) Demo — 20 Random Steps")
-    print("=" * 70)
-
-    seed = 42
-    num_users = 10
-    rng = np.random.default_rng(seed)
-
-    env = UAVTrajectoryEnv(k=num_users, rng=rng)
-    state = env.reset()
-    expected_dim = 2 * num_users + 6  # 26
-
-    print(f"K = {num_users}, State dim = {state.shape[0]} (expected {expected_dim})")
-    assert state.shape == (expected_dim,), f"State shape mismatch: {state.shape}"
-    print(f"Initial state (first 6): {state[:6]}")
-    print(f"  UAV pos: [{state[0]:.1f}, {state[1]:.1f}, {state[2]:.1f}]")
-    print(f"  v={state[-3]:.2f}, t_re={state[-2]:.1f}, d_re={state[-1]:.2f}")
-
-    cumulative_reward = 0.0
-    num_demo_steps = 20
-
-    for i in range(1, num_demo_steps + 1):
-        # Random action: v in [0, V_MAX], lam in [0, pi], rho in [-pi, pi]
-        v_act = rng.uniform(0.0, V_MAX)
-        lam_act = rng.uniform(0.0, math.pi)
-        rho_act = rng.uniform(-math.pi, math.pi)
-
-        next_state, reward, done, info = env.step((v_act, lam_act, rho_act))
-        cumulative_reward += reward
-
-        assert next_state.shape == (expected_dim,), (
-            f"Step {i}: state shape {next_state.shape} != ({expected_dim},)"
-        )
-
-        print(
-            f"\nStep {i:02d}: "
-            f"v_cmd={v_act:.2f} v_act={info['actual_speed']:.2f} "
-            f"lam={lam_act:.2f} rho={rho_act:.2f}"
-        )
-        print(
-            f"  UAV pos: [{next_state[0]:.1f}, {next_state[1]:.1f}, {next_state[2]:.1f}]  "
-            f"v={next_state[-3]:.2f}  t_re={next_state[-2]:.0f}  d_re={next_state[-1]:.1f}"
-        )
-        print(
-            f"  r1(throughput)={info['r1_throughput']:+.4f}  "
-            f"r2(energy)={info['r2_energy']:+.4f}  "
-            f"r3(terminal)={info['r3_terminal']:+.4f}"
-        )
-        print(
-            f"  r4(proximity)={info['r4_proximity']:+.4f}  "
-            f"r5(accel)={info['r5_accel']:+.4f}  "
-            f"r6(height)={info['r6_height']:+.4f}"
-        )
-        print(
-            f"  total_r={reward:+.4f}  cum_r={cumulative_reward:+.4f}  "
-            f"rate={info['total_rate_bps']/1e6:.2f}Mbps  "
-            f"energy={info['energy_j']:.1f}J  "
-            f"P_LoS={info['los_probability']:.3f}"
-        )
-        flags = []
-        if info["accel_violated"]:
-            flags.append("ACCEL_CLIP")
-        if info["height_violated"]:
-            flags.append("HEIGHT_VIOL")
-        if info["xy_violated"]:
-            flags.append("XY_VIOL")
-        if info["position_cancelled"]:
-            flags.append("POS_CANCEL")
-        if info["arrived"]:
-            flags.append("ARRIVED")
-        if flags:
-            print(f"  FLAGS: {', '.join(flags)}")
-
-        if done:
-            print(f"\n*** Episode terminated at step {i} ***")
-            print(f"    Arrived: {info['arrived']}")
-            print(f"    Final distance to destination: {info['dist_to_end']:.2f} m")
-            break
-
-    print(f"\nCumulative reward after {min(i, num_demo_steps)} steps: {cumulative_reward:+.4f}")
-    print(f"State shape consistent: ({expected_dim},) for K={num_users}")
-    print("\nMDP Environment demo completed successfully!")
