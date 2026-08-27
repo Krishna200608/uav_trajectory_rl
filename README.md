@@ -102,6 +102,7 @@ uav_trajectory_rl/
 |       |-- energy_model.py             # Rotary-wing propulsion power and energy (eq. 15-16)
 |       |-- mdp_environment.py          # Continuous MDP environment and 6 reward terms (eq. 17-29)
 |       |-- prior_knowledge_policy.py   # Heuristic PK generator and action dispatcher (eq. 30-31)
+|       |-- td3_networks.py             # TD3 actor, twin-critic networks, and replay buffer (eq. 32-38)
 |       |-- uav_kinematics.py           # 3D spherical kinematics and acceleration capping (eq. 1-3)
 |       \-- user_mobility.py            # Gauss-Markov ground user swarm mobility (eq. 4-7)
 \-- tests/
@@ -110,6 +111,7 @@ uav_trajectory_rl/
     |-- test_energy_model.py            # Power components and hovering energy tests
     |-- test_mdp_environment.py         # State dimensionality and MDP transition tests
     |-- test_prior_knowledge_policy.py  # Action generation, un-normalization, and dispatch tests
+    |-- test_td3_networks.py            # Actor bounds, twin-critic equality, and buffer overwrite tests
     |-- test_uav_kinematics.py          # Spherical motion updates and acceleration limits tests
     \-- test_user_mobility.py           # User swarm bounds and Gauss-Markov step tests
 ```
@@ -121,11 +123,11 @@ uav_trajectory_rl/
 - [x] M0 -- Shared config and constants
 - [x] M1 -- UAV kinematics (eq. 1-3)
 - [x] M2 -- User mobility -- Gauss-Markov (eq. 4-7)
-- [ ] M3 -- Channel model -- LoS, path loss, rate (eq. 8-14; eq. 13 fix pending re-review)
+- [x] M3 -- Channel model -- LoS, path loss, rate (eq. 8-14)
 - [x] M4 -- UAV energy and propulsion model (eq. 15-16)
 - [x] M5 -- MDP env wrapper -- state, action, 6-term reward, step (eq. 17-29)
-- [ ] M6 -- Prior-knowledge exploration policy (eq. 30-31; implemented, pending review)
-- [ ] M7 -- TD3 networks and replay buffer
+- [x] M6 -- Prior-knowledge exploration policy (eq. 30-31)
+- [ ] M7 -- TD3 networks and replay buffer (implemented, pending review)
 - [ ] M8 -- TD3 update rules (eq. 32-38)
 - [ ] M9 -- Training loop (Algorithm 1)
 - [ ] M10 -- Baseline: TDPK
@@ -141,11 +143,11 @@ uav_trajectory_rl/
 | M0 | `config.py` | Tables II, III and Sec. V-A constants | Done (reviewed, approved) |
 | M1 | `uav_kinematics.py` | Kinematics and acceleration limits (eq. 1-3) | Done (reviewed, approved) |
 | M2 | `user_mobility.py` | Gauss-Markov user mobility (eq. 4-7) | Done (reviewed, approved) |
-| M3 | `channel_model.py` | LoS probability, path loss, and rate (eq. 8-14) | In progress (eq. 13 fix pending re-review) |
+| M3 | `channel_model.py` | LoS probability, path loss, and rate (eq. 8-14) | Done (reviewed, approved) |
 | M4 | `energy_model.py` | Rotary-wing propulsion energy (eq. 15-16) | Done (reviewed, approved) |
 | M5 | `mdp_environment.py` | Full MDP env and 6 reward terms (eq. 17-29) | Done (reviewed, approved) |
-| M6 | `prior_knowledge_policy.py` | PK guidance and action dispatch (eq. 30-31) | Implemented (pending review) |
-| M7 | `td3_networks.py` | Actor-critic networks and replay buffer | Not started |
+| M6 | `prior_knowledge_policy.py` | PK guidance and action dispatch (eq. 30-31) | Done (reviewed, approved) |
+| M7 | `src/uav_trajectory_rl/td3_networks.py` | Actor-critic networks and replay buffer | Implemented (pending review) |
 | M8 | `td3_agent.py` | Clipped double-Q and target smoothing (eq. 32-38) | Not started |
 | M9 | `train.py` | Training loop (Algorithm 1) | Not started |
 | M10-M13 | Baselines | TDPK, Dueling DQL, PPO, Greedy | Not started |
