@@ -93,7 +93,8 @@ uav_trajectory_rl/
 |-- docs/
 |   \-- PKTD3-TD_Tracker.md             # Ground-truth parameters, assumptions, and review notes
 |-- scripts/
-|   \-- .gitkeep                        # Execution and training scripts
+|   |-- .gitkeep                        # Execution and training scripts
+|   \-- train.py                        # Full PKTD3-TD training loop (Algorithm 1)
 |-- src/
 |   \-- uav_trajectory_rl/
 |       |-- __init__.py                 # Package root
@@ -114,6 +115,7 @@ uav_trajectory_rl/
     ├── test_prior_knowledge_policy.py  # Action generation, un-normalization, and dispatch tests
     ├── test_td3_agent.py               # Target computation, delayed updates, and checkpointing tests
     ├── test_td3_networks.py            # Actor bounds, twin-critic equality, and buffer overwrite tests
+    ├── test_train_smoke.py             # End-to-end smoke test for training loop execution
     ├── test_uav_kinematics.py          # Spherical motion updates and acceleration limits tests
     └── test_user_mobility.py           # User swarm bounds and Gauss-Markov step tests
 ```
@@ -130,8 +132,8 @@ uav_trajectory_rl/
 - [x] M5 -- MDP env wrapper -- state, action, 6-term reward, step (eq. 17-29)
 - [x] M6 -- Prior-knowledge exploration policy (eq. 30-31)
 - [x] M7 -- TD3 networks and replay buffer
-- [ ] M8 -- TD3 update rules (eq. 32-38; implemented, pending review)
-- [ ] M9 -- Training loop (Algorithm 1)
+- [x] M8 -- TD3 update rules (eq. 32-38)
+- [ ] M9 -- Training loop (Algorithm 1; implemented, pending review)
 - [ ] M10 -- Baseline: TDPK
 - [ ] M11 -- Baseline: Dueling DQL
 - [ ] M12 -- Baseline: PPO
@@ -150,8 +152,8 @@ uav_trajectory_rl/
 | M5 | `mdp_environment.py` | Full MDP env and 6 reward terms (eq. 17-29) | Done (reviewed, approved) |
 | M6 | `prior_knowledge_policy.py` | PK guidance and action dispatch (eq. 30-31) | Done (reviewed, approved) |
 | M7 | `td3_networks.py` | Actor-critic networks and replay buffer | Done (reviewed, approved) |
-| M8 | `src/uav_trajectory_rl/td3_agent.py` | Clipped double-Q and target smoothing (eq. 32-38) | Implemented (pending review) |
-| M9 | `train.py` | Training loop (Algorithm 1) | Not started |
+| M8 | `td3_agent.py` | Clipped double-Q and target smoothing (eq. 32-38) | Done (reviewed, approved) |
+| M9 | `scripts/train.py` | Training loop (Algorithm 1) | Implemented (pending review) |
 | M10-M13 | Baselines | TDPK, Dueling DQL, PPO, Greedy | Not started |
 | M14 | Evaluation | Plotting suite (Figs. 4-12, Tables IV-VI) | Not started |
 

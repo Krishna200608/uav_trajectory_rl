@@ -95,8 +95,8 @@ Algorithm 1, line 15, lists `r_n = r_n,1+r_n,2+r_n,3+r_n,4+r_n,5` — **omits r_
 | M5 | MDP env wrapper: state/action/reward/step (eq. 17–29) | M1–M4 | **Done — reviewed, approved (Claude hand-verified all 6 reward terms exactly, incl. xy-cancellation and terminal-arrival edge cases)** |
 | M6 | Prior-knowledge exploration policy (eq. 30–31) | M5 | **Done — reviewed, approved (un-normalization boundary cases hand-verified, incl. R_ex==R_rand edge)** |
 | M7 | TD3 networks + replay buffer | M0 | **Done — reviewed, approved (shapes, q1_forward consistency, and circular-buffer overwrite hand-verified)** |
-| M8 | TD3 update rules: clipped double-Q, delayed update, target smoothing (eq. 32–38) | M7 | **Implemented — pending review** |
-| M9 | Training loop / full Algorithm 1 | M5, M6, M7, M8 | Not started |
+| M8 | TD3 update rules: clipped double-Q, delayed update, target smoothing (eq. 32–38) | M7 | **Done — reviewed, approved (delayed-update cadence and terminal-target zeroing hand-verified against independent computation)** |
+| M9 | Training loop / full Algorithm 1 | M5, M6, M7, M8 | **Implemented — pending review** |
 | M10 | Baseline: TDPK | M5 | Not started |
 | M11 | Baseline: Dueling DQL | M5 | Not started |
 | M12 | Baseline: PPO | M5 | Not started |
@@ -136,6 +136,15 @@ action ranges (which aren't all symmetric about zero). Implemented as an
 explicit affine mapping (see module docstring for exact formulas) --
 flagged here since this is an engineering decision, not a value taken
 from the paper.
+
+### M9 design note — total_updates vs. Algorithm 1's slot index n
+TD3Agent.train_step's policy_delay gating counts CALLS to train_step, not
+the raw environment time-slot n from Algorithm 1. Since train_step is only
+called once R_ex > R_rand (matching Algorithm 1 Line 17's gate), the
+RELATIVE cadence (actor+target update every policy_delay training calls)
+is correct and is what matters for TD3 stability, but it is not
+phase-aligned with the paper's absolute slot index n. Inconsequential to
+correctness; noted for completeness.
 
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
