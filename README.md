@@ -95,7 +95,8 @@ uav_trajectory_rl/
 |-- docs/
 |   \-- PKTD3-TD_Tracker.md             # Ground-truth parameters, assumptions, and review notes
 |-- notebooks/
-|   \-- train_colab.ipynb               # Google Colab T4 training notebook with Drive backup & GitHub push
+|   |-- train_colab.ipynb               # Google Colab T4 training notebook with Drive backup & GitHub push
+|   \-- check_actor_saturation_colab.ipynb # Live diagnostic monitor to check actor saturation on Drive
 |-- scripts/
 |   |-- .gitkeep                        # Execution and training scripts
 |   \-- train.py                        # Full PKTD3-TD training loop (Algorithm 1)
