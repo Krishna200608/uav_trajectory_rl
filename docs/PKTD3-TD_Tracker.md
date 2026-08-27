@@ -92,10 +92,10 @@ Algorithm 1, line 15, lists `r_n = r_n,1+r_n,2+r_n,3+r_n,4+r_n,5` — **omits r_
 | M2 | User mobility — Gaussian-Markov (eq. 4–7) | M0 | **Done — reviewed, approved** |
 | M3 | Channel model — LoS/path-loss/rate (eq. 8–14) | M0 | **Done — reviewed, approved (eq. 13 fix hand-verified: log2(SNR), no +1)** |
 | M4 | UAV energy/propulsion model (eq. 15–16) | M0 | **Done — reviewed, approved (hand-verified numerically)** |
-| M5 | MDP env wrapper: state/action/reward/step (eq. 17–29) | M1–M4 | **Done — reviewed, approved (Claude hand-verified all 6 reward terms exactly, incl. xy-cancellation and terminal-arrival edge cases)** |
+| M5 | MDP env wrapper: state/action/reward/step (eq. 17–29) | M1–M4 | **Done — reviewed, approved (Claude hand-verified all 6 reward terms exactly, incl. xy-cancellation and terminal-arrival edge cases; state normalization added per CRITICAL FIX)** |
 | M6 | Prior-knowledge exploration policy (eq. 30–31) | M5 | **Done — reviewed, approved (un-normalization boundary cases hand-verified, incl. R_ex==R_rand edge)** |
 | M7 | TD3 networks + replay buffer | M0 | **Done — reviewed, approved (shapes, q1_forward consistency, and circular-buffer overwrite hand-verified)** |
-| M8 | TD3 update rules: clipped double-Q, delayed update, target smoothing (eq. 32–38) | M7 | **Done — reviewed, approved (delayed-update cadence and terminal-target zeroing hand-verified against independent computation)** |
+| M8 | TD3 update rules: clipped double-Q, delayed update, target smoothing (eq. 32–38) | M7 | **Done — reviewed, approved (delayed-update cadence and terminal-target zeroing hand-verified; gradient clipping added per CRITICAL FIX)** |
 | M9 | Training loop / full Algorithm 1 | M5, M6, M7, M8 | **Done — reviewed, approved (smoke test verified independently in a clean venv; network-driven branch confirmed via total_updates>0 after loading the saved checkpoint)** |
 | M10 | Baseline: TDPK | M5 | **Done — reviewed, approved (geometry hand-verified: diagonal, vertical, and degenerate same-point cases all match spec exactly)** |
 | M11 | Baseline: Dueling DQL | M5 | Not started |
@@ -160,6 +160,26 @@ When running on GPU accelerators (e.g. Google Colab T4), Actor and TwinCritic
 networks reside on cuda:0. Forward passes now automatically ensure input tensors
 reside on the network's active device (self.device) before executing layers,
 resolving CPU/CUDA device mismatch errors in tests and inference.
+
+### CRITICAL FIX — actor saturation traced to unnormalized state input
+The full 6000-episode run1 training (checkpoints/run1) produced a DEAD
+actor: verified by loading checkpoints at episodes 500/1000/3000/6000 and
+confirming bit-identical, tanh-saturated (+-1) outputs on fixed test states
+across all of them -- the actor stopped learning almost immediately and ran
+the remaining ~5500 episodes as a fixed, state-independent controller. This
+fully explains the flat ~-270 reward plateau reported after training.
+ROOT CAUSE: the state vector fed to the actor/critic networks mixed raw
+physical quantities of very different scales (positions to 600, distances
+to ~848, time to 200, speed to 20) with no normalization, a well-known
+cause of saturated pre-activations in bounded-output (tanh) actors.
+FIX: state normalization added to UAVTrajectoryEnv._build_state() (all
+components now roughly in [-1,1] or [0,1]), plus gradient norm clipping
+(max_norm=10.0) added to TD3Agent.train_step as an additional stability
+safeguard. Both are documented engineering design decisions, not paper-
+specified values.
+checkpoints/run1 IS INVALID and must not be used for baseline comparisons
+or M14 evaluation plots -- retain it in the repo for the record (do not
+delete), but treat it as a documented failed run, not a completed result.
 
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*

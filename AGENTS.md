@@ -46,12 +46,9 @@ Follow these principles without exception:
 ## 5. CURRENT STATE SNAPSHOT
 
 As of the latest repository commits:
-- **Completed Modules (M0–M10):** All core environment primitives, TD3 networks, TD3 agent, prior-knowledge policy, training loop (Algorithm 1), and the first evaluation baseline (TDPK direct-to-destination heuristic) are complete, reviewed, and approved with 36 passing unit tests.
-- **Trained Run 1:** The full 6,000-episode training run (Algorithm 1) has been executed to completion on a Google Colab T4 GPU instance, performing 1,177,137 gradient updates. All intermediate snapshots (`td3_agent_ep500.pt` to `ep6000.pt`), final model (`td3_agent_final.pt`), raw rewards array (`episode_rewards.npy`), and convergence plot (`training_reward_curve.png`) are stored in `checkpoints/run1/`.
-  - Initial 100 episodes mean (prior knowledge): $+693.09 \pm 235.80$
-  - Final 100 episodes mean: $-264.24$
-  - Final 500 episodes mean: $-276.10 \pm 161.64$
-- **Current Development Focus:** Implementing remaining evaluation baselines: Dueling DQL (M11), PPO (M12), and Greedy (M13), followed by the trajectory evaluation & plotting suite (M14) to reproduce paper Figures 4–12 and Tables IV–VI.
+- **Completed Modules (M0–M10):** All core environment primitives, TD3 networks, TD3 agent, prior-knowledge policy, training loop (Algorithm 1), and the first evaluation baseline (TDPK direct-to-destination heuristic) are complete, reviewed, and approved with 37 passing unit tests.
+- **CRITICAL FIX & Run 1 Invalidation:** The completed 6,000-episode training run in `checkpoints/run1/` suffered from a DEAD/frozen actor (tanh-saturated at $\pm 1$ from episode 500 onward due to unnormalized state inputs spanning raw physical values up to 600m/848m). **Run 1 is invalid and must not be used for evaluation or baseline comparison.** State normalization (to roughly $[-1, 1]$ and $[0, 1]$) in `UAVTrajectoryEnv._build_state()` and gradient clipping (`max_norm=10.0`) in `TD3Agent.train_step()` have been added to resolve this root cause.
+- **Current Development Focus:** Verifying actor non-saturation with a short local diagnostic run (300 episodes), followed by launching a new full training run before proceeding to baseline comparisons and M14 evaluation.
 
 ## 6. ENVIRONMENT SETUP QUICK REFERENCE
 

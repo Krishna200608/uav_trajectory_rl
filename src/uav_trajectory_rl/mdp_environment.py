@@ -34,6 +34,7 @@ from uav_trajectory_rl.config import (
     C_NR,
     C_TH,
     DELTA,
+    MAX_DISTANCE,
     N_SLOTS,
     Q_END,
     Q_START,
@@ -64,11 +65,14 @@ class UAVTrajectoryEnv:
 
     State (eq. 19): s_n = [x, y, z, x1, y1, ..., xK, yK, v, t_re, d_re]
         Flat np.ndarray of shape (2*K + 6,).
+        Components are normalized to roughly [-1, 1] (coordinates) and [0, 1] (v, t_re, d_re)
+        to prevent actor-critic pre-activation saturation (DESIGN DECISION).
 
     Action (eq. 20): a_n = (v_n, lam_n, rho_n)
         Raw physical values: speed in [0, V_MAX], polar in [0, pi], azimuth in [-pi, pi].
 
     Reward (eq. 21-29): sum of six terms r_n,1..r_n,6.
+        All reward terms evaluate against raw physical internal attributes, not normalized states.
     """
 
     def __init__(
@@ -324,24 +328,45 @@ class UAVTrajectoryEnv:
 
     def _build_state(self) -> np.ndarray:
         """
-        Construct the flat state vector s_n (eq. 19).
+        Construct the flat normalized state vector s_n (eq. 19).
 
-        Layout: [x, y, z, x1, y1, ..., xK, yK, v, t_re, d_re]
+        Layout: [x_norm, y_norm, z_norm, x1_norm, y1_norm, ..., xK_norm, yK_norm, v_norm, t_re_norm, d_re_norm]
         Shape: (2*K + 6,)
+
+        DESIGN DECISION (CRITICAL FIX):
+            Raw physical values span widely differing ranges (positions to 600m, altitude to 200m,
+            time to 200s, distance to ~848m, speed to 20m/s). Unnormalized inputs cause premature
+            saturation in bounded-output (tanh) actor-critic networks. We normalize positions to
+            roughly [-1, 1] and scalar metrics to roughly [0, 1] using known physical bounds from config.py.
+            Raw attributes are retained on self for physics and reward computation.
         """
         user_pos = self.user_swarm.get_positions()  # (K, 2)
 
         t_re = self.t_max - self.step_count * self.delta
         d_re = float(np.linalg.norm(self.uav_pos - self.q_end))
 
+        # Position normalization to [-1, 1]
+        x_norm = (self.uav_pos[0] - self.x_min) / (self.x_max - self.x_min) * 2.0 - 1.0
+        y_norm = (self.uav_pos[1] - self.y_min) / (self.y_max - self.y_min) * 2.0 - 1.0
+        z_norm = (self.uav_pos[2] - self.z_min) / (self.z_max - self.z_min) * 2.0 - 1.0
+
+        user_norm = np.empty_like(user_pos)
+        user_norm[:, 0] = (user_pos[:, 0] - self.x_min) / (self.x_max - self.x_min) * 2.0 - 1.0
+        user_norm[:, 1] = (user_pos[:, 1] - self.y_min) / (self.y_max - self.y_min) * 2.0 - 1.0
+
+        # Scalar normalization to [0, 1]
+        v_norm = self.uav_speed / self.v_max
+        t_re_norm = t_re / self.t_max
+        d_re_norm = d_re / MAX_DISTANCE
+
         state = np.empty(self.state_dim, dtype=np.float64)
-        state[0] = self.uav_pos[0]  # x
-        state[1] = self.uav_pos[1]  # y
-        state[2] = self.uav_pos[2]  # z
-        state[3:3 + 2 * self.k] = user_pos.flatten()  # x1, y1, ..., xK, yK
-        state[3 + 2 * self.k] = self.uav_speed  # v (acceleration-constrained actual speed)
-        state[4 + 2 * self.k] = t_re  # remaining time
-        state[5 + 2 * self.k] = d_re  # remaining distance to destination
+        state[0] = x_norm
+        state[1] = y_norm
+        state[2] = z_norm
+        state[3:3 + 2 * self.k] = user_norm.flatten()
+        state[3 + 2 * self.k] = v_norm
+        state[4 + 2 * self.k] = t_re_norm
+        state[5 + 2 * self.k] = d_re_norm
 
         return state
 

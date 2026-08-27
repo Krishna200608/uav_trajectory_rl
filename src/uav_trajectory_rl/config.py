@@ -35,6 +35,12 @@ T_MAX: float = 200.0                      # Total mission duration (s)
 DELTA: float = 1.0                        # Time slot duration (s)
 N_SLOTS: int = int(T_MAX / DELTA)         # Total number of discrete time slots (200)
 
+# Derived normalization constant: maximum Euclidean distance across service volume (m)
+# sqrt((600-0)^2 + (600-0)^2 + (200-50)^2) ~= 861.68 m (DESIGN DECISION for state normalization)
+MAX_DISTANCE: float = math.sqrt(
+    (X_MAX - X_MIN) ** 2 + (Y_MAX - Y_MIN) ** 2 + (Z_MAX - Z_MIN) ** 2
+)
+
 # ==============================================================================
 # UAV Kinematics
 # ==============================================================================

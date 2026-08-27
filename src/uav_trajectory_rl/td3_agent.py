@@ -57,6 +57,7 @@ class TD3Agent:
         sigma_tilde: float = SIGMA_TILDE,
         action_clip_c: float = ACTION_CLIP_C,
         lr: float = LEARNING_RATE,
+        max_grad_norm: float = 10.0,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -72,6 +73,7 @@ class TD3Agent:
             sigma_tilde: Target policy smoothing noise std dev (default: SIGMA_TILDE = 0.2).
             action_clip_c: Action clipping bound c (default: ACTION_CLIP_C = 1.0).
             lr: Adam optimizer learning rate for actor and critic (default: LEARNING_RATE = 1e-4).
+            max_grad_norm: Maximum norm for gradient clipping (default: 10.0, DESIGN DECISION).
             device: Computation device. Defaults to DEFAULT_DEVICE.
         """
         target_device = device if device is not None else DEFAULT_DEVICE
@@ -86,6 +88,7 @@ class TD3Agent:
         self.sigma_tilde: float = float(sigma_tilde)
         self.action_clip_c: float = float(action_clip_c)
         self.lr: float = float(lr)
+        self.max_grad_norm: float = float(max_grad_norm)
 
         # Primary and target actor networks
         self.actor = Actor(state_dim, action_dim, max_action=self.max_action, device=self.device)
@@ -202,6 +205,7 @@ class TD3Agent:
 
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=self.max_grad_norm)
         self.critic_optimizer.step()
 
         # 4. Increment update counter
@@ -214,6 +218,7 @@ class TD3Agent:
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=self.max_grad_norm)
             self.actor_optimizer.step()
 
             # Soft target updates for actor and twin critic (eq. 35)

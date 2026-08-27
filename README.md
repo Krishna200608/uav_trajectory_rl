@@ -139,7 +139,7 @@ uav_trajectory_rl/
 - [x] M6 -- Prior-knowledge exploration policy (eq. 30-31)
 - [x] M7 -- TD3 networks and replay buffer
 - [x] M8 -- TD3 update rules (eq. 32-38)
-- [x] M9 -- Training loop (Algorithm 1; full 6,000-episode run completed on T4 GPU)
+- [x] M9 -- Training loop (Algorithm 1; state normalization & gradient clipping added)
 - [x] M10 -- Baseline: TDPK
 - [ ] M11 -- Baseline: Dueling DQL
 - [ ] M12 -- Baseline: PPO
