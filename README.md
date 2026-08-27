@@ -135,7 +135,7 @@ uav_trajectory_rl/
 - [x] M6 -- Prior-knowledge exploration policy (eq. 30-31)
 - [x] M7 -- TD3 networks and replay buffer
 - [x] M8 -- TD3 update rules (eq. 32-38)
-- [ ] M9 -- Training loop (Algorithm 1; implemented, pending review)
+- [x] M9 -- Training loop (Algorithm 1; full 6,000-episode run completed on T4 GPU)
 - [ ] M10 -- Baseline: TDPK
 - [ ] M11 -- Baseline: Dueling DQL
 - [ ] M12 -- Baseline: PPO
@@ -155,7 +155,7 @@ uav_trajectory_rl/
 | M6 | `prior_knowledge_policy.py` | PK guidance and action dispatch (eq. 30-31) | Done (reviewed, approved) |
 | M7 | `td3_networks.py` | Actor-critic networks and replay buffer | Done (reviewed, approved) |
 | M8 | `td3_agent.py` | Clipped double-Q and target smoothing (eq. 32-38) | Done (reviewed, approved) |
-| M9 | `scripts/train.py` | Training loop (Algorithm 1) | Implemented (pending review) |
+| M9 | `scripts/train.py` | Training loop (Algorithm 1) | Done (reviewed, approved) |
 | M10-M13 | Baselines | TDPK, Dueling DQL, PPO, Greedy | Not started |
 | M14 | Evaluation | Plotting suite (Figs. 4-12, Tables IV-VI) | Not started |
 
@@ -166,8 +166,8 @@ Full parameter grounding, paper corrections, and review notes: [docs/PKTD3-TD_Tr
 - **Python 3.10+**: Core programming language.
 - **NumPy**: Matrix operations, vector math, and Gauss-Markov noise generation.
 - **Pytest**: Automated test discovery and test assertion framework.
-- **PyTorch** *(planned)*: Deep neural network construction for M7 (actor-critic networks).
-- **Matplotlib** *(planned)*: Visualizations and performance curve generation for M14.
+- **PyTorch**: Deep neural network construction (Actor, TwinCritic, TD3 agent).
+- **Matplotlib**: Training reward curve visualization and evaluation plotting suite.
 
 ## Contributing and acknowledgments
 
