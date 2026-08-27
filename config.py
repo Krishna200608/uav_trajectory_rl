@@ -29,6 +29,8 @@ Z_MAX: float = 200.0     # Maximum UAV altitude (m)
 Q_START: tuple[float, float, float] = (0.0, 0.0, 50.0)    # UAV initial 3D position (x, y, z) in m
 Q_END: tuple[float, float, float] = (600.0, 600.0, 50.0)  # UAV destination 3D position (x, y, z) in m
 
+ARRIVAL_THRESHOLD_M: float = 5.0   # ASSUMPTION: paper gives no numeric arrival tolerance for C6 (q_N == q_e)
+
 T_MAX: float = 200.0                      # Total mission duration (s)
 DELTA: float = 1.0                        # Time slot duration (s)
 N_SLOTS: int = int(T_MAX / DELTA)         # Total number of discrete time slots (200)

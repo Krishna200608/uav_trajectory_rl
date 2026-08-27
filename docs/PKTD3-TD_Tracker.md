@@ -92,7 +92,7 @@ Algorithm 1, line 15, lists `r_n = r_n,1+r_n,2+r_n,3+r_n,4+r_n,5` — **omits r_
 | M2 | User mobility — Gaussian-Markov (eq. 4–7) | M0 | **Done — reviewed, approved** |
 | M3 | Channel model — LoS/path-loss/rate (eq. 8–14) | M0 | **In progress — 1 bug found (eq. 13), fix sent back to team** |
 | M4 | UAV energy/propulsion model (eq. 15–16) | M0 | **Done — reviewed, approved (hand-verified numerically)** |
-| M5 | MDP env wrapper: state/action/reward/step (eq. 17–29) | M1–M4 | Not started |
+| M5 | MDP env wrapper: state/action/reward/step (eq. 17–29) | M1–M4 | **Implemented — pending review** |
 | M6 | Prior-knowledge exploration policy (eq. 30–31) | M5 | Not started |
 | M7 | TD3 networks + replay buffer | M0 | Not started |
 | M8 | TD3 update rules: clipped double-Q, delayed update, target smoothing (eq. 32–38) | M7 | Not started |
@@ -119,6 +119,15 @@ Pixel-level zoom on eq. (8) appears to show `exp(-b2*θ - b1)` rather than the s
 
 ### Config — σ1, σ2, σ3, σ̃ interpretation (std dev vs. variance)
 The paper's Notation section defines `N(μ, σ²)` with the second argument as *variance*, but eq. (4)-(5), (31), (38) write `N(0, σ1)`, `N(0, σ3)` etc. — the bare symbol, not squared. Taken at face value against the paper's own notation rule, this would mean σ1/σ2/σ3/σ̃ (Table III values) are variances, and the actual std dev fed into a Gaussian sampler should be their square roots. Current code (config + user_mobility.py) uses the Table III values directly as `scale=` (std dev) in `np.random.normal`, matching standard TD3-literature convention (exploration/smoothing noise is conventionally parameterized by std dev directly) rather than the paper's own stated notation rule. Decision: keep as implemented (std dev = table value directly) for consistency with TD3 convention; documented here as a known ambiguity in case results look off and this needs revisiting.
+
+### M5 — mdp_environment.py — eq. (26) corrected: q_s to q_e
+The paper's typeset eq. (26) for d_near_n uses Q_START (q_s), but its own prose description ("decrease in distance to the destination") and the reward's purpose both require Q_END (q_e). Implemented using Q_END; documented as a corrected typo in the source paper.
+
+### M5 — r_n,3 terminal-condition interpretation
+Eq. (23)'s condition "N = T/delta" is interpreted as "this is the terminal step of the episode" (which can occur before N_SLOTS via early arrival, per Algorithm 1's loop-termination rule), not a literal equality against the constant N_SLOTS — otherwise early-arrival episodes would never receive this reward term, defeating its purpose.
+
+### M5 — new assumption: ARRIVAL_THRESHOLD_M = 5.0 m
+Paper gives no numeric tolerance for constraint C6 (exact arrival q_N = q_e). Added as a documented assumption in config.py.
 
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
