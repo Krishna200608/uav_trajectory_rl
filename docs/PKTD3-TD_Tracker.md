@@ -87,11 +87,11 @@ Algorithm 1, line 15, lists `r_n = r_n,1+r_n,2+r_n,3+r_n,4+r_n,5` — **omits r_
 
 | ID | Module | Depends on | Status |
 |---|---|---|---|
-| M0 | Shared config / constants | — | **In progress** |
-| M1 | UAV kinematics (eq. 1–3) | M0 | Not started |
-| M2 | User mobility — Gaussian-Markov (eq. 4–7) | M0 | Not started |
-| M3 | Channel model — LoS/path-loss/rate (eq. 8–14) | M0 | Not started |
-| M4 | UAV energy/propulsion model (eq. 15–16) | M0 | Not started |
+| M0 | Shared config / constants | — | **Done — reviewed, approved** |
+| M1 | UAV kinematics (eq. 1–3) | M0 | **Done — reviewed, approved** |
+| M2 | User mobility — Gaussian-Markov (eq. 4–7) | M0 | **Done — reviewed, approved** |
+| M3 | Channel model — LoS/path-loss/rate (eq. 8–14) | M0 | **In progress — 1 bug found (eq. 13), fix sent back to team** |
+| M4 | UAV energy/propulsion model (eq. 15–16) | M0 | **Done — reviewed, approved (hand-verified numerically)** |
 | M5 | MDP env wrapper: state/action/reward/step (eq. 17–29) | M1–M4 | Not started |
 | M6 | Prior-knowledge exploration policy (eq. 30–31) | M5 | Not started |
 | M7 | TD3 networks + replay buffer | M0 | Not started |
@@ -106,4 +106,19 @@ Algorithm 1, line 15, lists `r_n = r_n,1+r_n,2+r_n,3+r_n,4+r_n,5` — **omits r_
 **Suggested parallelization:** once M0 lands, M1/M2/M3/M4 are mutually independent — good four-way split across the team.
 
 ---
-*This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under a "Review notes" section.*
+
+## 3. Review notes (log of mismatches found during code review)
+
+### M3 — channel_model.py — BUG: eq. (13) incorrectly includes "+1" in the log
+Original M3 prompt (drafted by Claude) instructed `log2(1 + SNR)`, defaulting to the textbook Shannon-capacity form from general knowledge. Pixel-level inspection of the actual typeset equation on page 6 confirms the paper's literal eq. (13) is `log2(SNR)` — no "+1". This is a Claude drafting error, not a Gemini implementation error; Gemini correctly implemented what it was asked to implement.
+**Fix:** drop the "+1"; `rate_bps = bandwidth_per_user * log2(snr)`. This can legitimately go negative when SNR < 1 — do not clip. Flagged for awareness at M9 (training loop / reward): a negative throughput term is expected paper-faithful behavior, not a bug, when links are weak.
+**Status:** fix sent back to team, awaiting re-verification.
+
+### M3 — eq. (8) LoS probability — ambiguous PDF typesetting, resolved, no code change needed
+Pixel-level zoom on eq. (8) appears to show `exp(-b2*θ - b1)` rather than the standard Al-Hourani `exp(-b2*(θ-b1))` that the code implements. Numerically checked both readings across θ=0°–90°: the "literal" reading gives P_LoS ≈ 0.999+ at *every* angle (physically implausible, and inconsistent with the paper's own reported LoS values of 0.78–0.89 in Tables IV–VI). The standard sigmoid reading (what the code currently does) produces a believable 0.02→0.9998 sweep and matches the paper's own reported numbers. Conclusion: keep the code as-is; likely a typesetting/rendering quirk in the source PDF, not a real alternate formula.
+
+### Config — σ1, σ2, σ3, σ̃ interpretation (std dev vs. variance)
+The paper's Notation section defines `N(μ, σ²)` with the second argument as *variance*, but eq. (4)-(5), (31), (38) write `N(0, σ1)`, `N(0, σ3)` etc. — the bare symbol, not squared. Taken at face value against the paper's own notation rule, this would mean σ1/σ2/σ3/σ̃ (Table III values) are variances, and the actual std dev fed into a Gaussian sampler should be their square roots. Current code (config + user_mobility.py) uses the Table III values directly as `scale=` (std dev) in `np.random.normal`, matching standard TD3-literature convention (exploration/smoothing noise is conventionally parameterized by std dev directly) rather than the paper's own stated notation rule. Decision: keep as implemented (std dev = table value directly) for consistency with TD3 convention; documented here as a known ambiguity in case results look off and this needs revisiting.
+
+---
+*This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*

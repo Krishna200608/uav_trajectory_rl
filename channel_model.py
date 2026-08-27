@@ -2,7 +2,7 @@
 Air-to-Ground (A2G) Channel Model and Achievable Rate Calculations.
 
 This module implements the probabilistic Line-of-Sight (LoS) / Non-Line-of-Sight (NLoS)
-path loss and Shannon transmission rate models for UAV-to-ground-user communications,
+path loss and transmission rate models for UAV-to-ground-user communications,
 corresponding to equations (8)-(14) of the IEEE TNSE paper:
     "3-D Trajectory Design Based on Deep Reinforcement Learning for
      UAV-Assisted Communication Networks"
@@ -13,7 +13,7 @@ Unit Consistency Note:
     - Bandwidth (B_u / K): Hertz (Hz).
     - Noise power: N0 * (B_u / K) in milliwatts (mW).
     - Received SNR: (p_k / beta) / (N0 * B_u / K) is dimensionless (mW / mW).
-    - Achievable rate: Bits per second (bps).
+    - Achievable rate: Bits per second (bps), computed as (B_u / K) * log2(SNR) per literal eq. (13).
 """
 
 import math
@@ -195,11 +195,13 @@ def transmission_rate(
     vc: float = VC,
 ) -> float:
     """
-    Compute Shannon achievable transmission rate for user k in bits/s (eq. 13).
+    Compute achievable transmission rate for user k in bits/s (literal eq. 13).
 
     Formula:
-        R_n^k = (B_u / K) * log2(1 + p_k / (beta_n^k * N0 * (B_u / K)))
-        where beta_n^k = 10^(PL_n^k / 10) (average path loss in linear scale)
+        R_n^k = (B_u / K) * log2(p_k / (beta_n^k * N0 * (B_u / K)))
+        where beta_n^k = 10^(PL_n^k / 10) (average path loss in linear scale).
+        Note: Per literal eq. (13) of the paper, this is log2(SNR) without '+ 1'.
+        When SNR < 1, rate can be negative.
 
     Parameters:
         uav_pos: 3D UAV position [x, y, z] in meters.
@@ -242,8 +244,8 @@ def transmission_rate(
     # Signal-to-Noise Ratio (dimensionless: mW / mW)
     snr = p_k_mw / noise_power_mw
 
-    # Shannon capacity (bits/s)
-    rate_bps = bandwidth_per_user * math.log2(1.0 + snr)
+    # Transmission rate per paper literal eq. (13): log2(SNR) without '+ 1'
+    rate_bps = bandwidth_per_user * math.log2(snr)
     return float(rate_bps)
 
 
