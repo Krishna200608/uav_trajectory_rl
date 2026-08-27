@@ -97,7 +97,7 @@ Algorithm 1, line 15, lists `r_n = r_n,1+r_n,2+r_n,3+r_n,4+r_n,5` — **omits r_
 | M7 | TD3 networks + replay buffer | M0 | **Done — reviewed, approved (shapes, q1_forward consistency, and circular-buffer overwrite hand-verified)** |
 | M8 | TD3 update rules: clipped double-Q, delayed update, target smoothing (eq. 32–38) | M7 | **Done — reviewed, approved (delayed-update cadence and terminal-target zeroing hand-verified against independent computation)** |
 | M9 | Training loop / full Algorithm 1 | M5, M6, M7, M8 | **Done — reviewed, approved (smoke test verified independently in a clean venv; network-driven branch confirmed via total_updates>0 after loading the saved checkpoint)** |
-| M10 | Baseline: TDPK | M5 | **Implemented — pending review** |
+| M10 | Baseline: TDPK | M5 | **Done — reviewed, approved (geometry hand-verified: diagonal, vertical, and degenerate same-point cases all match spec exactly)** |
 | M11 | Baseline: Dueling DQL | M5 | Not started |
 | M12 | Baseline: PPO | M5 | Not started |
 | M13 | Baseline: Greedy | M5 | Not started |

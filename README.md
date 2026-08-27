@@ -140,7 +140,7 @@ uav_trajectory_rl/
 - [x] M7 -- TD3 networks and replay buffer
 - [x] M8 -- TD3 update rules (eq. 32-38)
 - [x] M9 -- Training loop (Algorithm 1; full 6,000-episode run completed on T4 GPU)
-- [ ] M10 -- Baseline: TDPK
+- [x] M10 -- Baseline: TDPK
 - [ ] M11 -- Baseline: Dueling DQL
 - [ ] M12 -- Baseline: PPO
 - [ ] M13 -- Baseline: Greedy
@@ -160,7 +160,7 @@ uav_trajectory_rl/
 | M7 | `td3_networks.py` | Actor-critic networks and replay buffer | Done (reviewed, approved) |
 | M8 | `td3_agent.py` | Clipped double-Q and target smoothing (eq. 32-38) | Done (reviewed, approved) |
 | M9 | `scripts/train.py` | Training loop (Algorithm 1) | Done (reviewed, approved) |
-| M10 | `baselines/tdpk.py` | Baseline: TDPK (direct-to-destination flight) | Implemented (pending review) |
+| M10 | `baselines/tdpk.py` | Baseline: TDPK (direct-to-destination flight) | Done (reviewed, approved) |
 | M11-M13 | Baselines | Dueling DQL, PPO, Greedy | Not started |
 | M14 | Evaluation | Plotting suite (Figs. 4-12, Tables IV-VI) | Not started |
 
