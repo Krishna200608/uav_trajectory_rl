@@ -92,8 +92,8 @@ Algorithm 1, line 15, lists `r_n = r_n,1+r_n,2+r_n,3+r_n,4+r_n,5` — **omits r_
 | M2 | User mobility — Gaussian-Markov (eq. 4–7) | M0 | **Done — reviewed, approved** |
 | M3 | Channel model — LoS/path-loss/rate (eq. 8–14) | M0 | **In progress — 1 bug found (eq. 13), fix sent back to team** |
 | M4 | UAV energy/propulsion model (eq. 15–16) | M0 | **Done — reviewed, approved (hand-verified numerically)** |
-| M5 | MDP env wrapper: state/action/reward/step (eq. 17–29) | M1–M4 | **Implemented — pending review** |
-| M6 | Prior-knowledge exploration policy (eq. 30–31) | M5 | Not started |
+| M5 | MDP env wrapper: state/action/reward/step (eq. 17–29) | M1–M4 | **Done — reviewed, approved (Claude hand-verified all 6 reward terms exactly, incl. xy-cancellation and terminal-arrival edge cases)** |
+| M6 | Prior-knowledge exploration policy (eq. 30–31) | M5 | **Implemented — pending review** |
 | M7 | TD3 networks + replay buffer | M0 | Not started |
 | M8 | TD3 update rules: clipped double-Q, delayed update, target smoothing (eq. 32–38) | M7 | Not started |
 | M9 | Training loop / full Algorithm 1 | M5, M6, M7, M8 | Not started |
@@ -128,6 +128,14 @@ Eq. (23)'s condition "N = T/delta" is interpreted as "this is the terminal step 
 
 ### M5 — new assumption: ARRIVAL_THRESHOLD_M = 5.0 m
 Paper gives no numeric tolerance for constraint C6 (exact arrival q_N = q_e). Added as a documented assumption in config.py.
+
+### M6 — prior_knowledge_policy.py — un-normalization mapping is a Claude design decision
+The paper specifies eq. (31)'s clipping happens in the actor's normalized
+[-c,c] output space but never specifies how that maps to the physical
+action ranges (which aren't all symmetric about zero). Implemented as an
+explicit affine mapping (see module docstring for exact formulas) --
+flagged here since this is an engineering decision, not a value taken
+from the paper.
 
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*

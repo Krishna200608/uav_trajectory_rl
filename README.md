@@ -68,14 +68,16 @@ uav_trajectory_rl/
 │       ├── user_mobility.py        # Gauss-Markov ground user mobility model (eq. 4–7)
 │       ├── channel_model.py        # Probabilistic LoS/NLoS path loss & rate (eq. 8–14)
 │       ├── energy_model.py         # Rotary-wing propulsion energy consumption (eq. 15–16)
-│       └── mdp_environment.py     # Gym-like MDP environment wrapper (eq. 17–29, Alg. 1)
+│       ├── mdp_environment.py     # Gym-like MDP environment wrapper (eq. 17–29, Alg. 1)
+│       └── prior_knowledge_policy.py # Prior-knowledge exploration policy (eq. 30–31)
 ├── tests/
 │   ├── __init__.py
-│   ├── test_uav_kinematics.py      # Kinematics displacement & accel clipping tests
-│   ├── test_user_mobility.py       # UserSwarm initialization & Gauss-Markov step tests
 │   ├── test_channel_model.py       # LoS probability, path loss & rate tests
 │   ├── test_energy_model.py        # Propulsion power & energy tests
-│   └── test_mdp_environment.py     # State space dim (2K+6) & MDP step loop tests
+│   ├── test_mdp_environment.py     # State space dim (2K+6) & MDP step loop tests
+│   ├── test_prior_knowledge_policy.py # PK generation, un-normalization & dispatch tests
+│   ├── test_uav_kinematics.py      # Kinematics displacement & accel clipping tests
+│   └── test_user_mobility.py       # UserSwarm initialization & Gauss-Markov step tests
 ├── docs/
 │   └── PKTD3-TD_Tracker.md         # Source grounding, parameters, assumptions & review notes
 ├── scripts/                        # Training and benchmark execution scripts
@@ -93,8 +95,8 @@ uav_trajectory_rl/
 | **M2** | `src/uav_trajectory_rl/user_mobility.py` | Gauss-Markov user mobility (eq. 4–7) | **Done — reviewed, approved** |
 | **M3** | `src/uav_trajectory_rl/channel_model.py` | LoS probability, path loss & rate (eq. 8–14) | **Done — reviewed, approved (eq. 13 verified)** |
 | **M4** | `src/uav_trajectory_rl/energy_model.py` | Rotary-wing propulsion power (eq. 15–16) | **Done — reviewed, approved** |
-| **M5** | `src/uav_trajectory_rl/mdp_environment.py` | State, action, 6-term reward & step (eq. 17–29) | **Implemented — pending review** |
-| **M6** | `prior_knowledge.py` | Prior-knowledge guidance policy (eq. 30–31) | Not started |
+| **M5** | `src/uav_trajectory_rl/mdp_environment.py` | State, action, 6-term reward & step (eq. 17–29) | **Done — reviewed, approved** |
+| **M6** | `src/uav_trajectory_rl/prior_knowledge_policy.py` | Prior-knowledge guidance policy (eq. 30–31) | **Implemented — pending review** |
 | **M7** | `td3_networks.py` | Actor-critic networks & replay buffer | Not started |
 | **M8** | `td3_agent.py` | Clipped double-Q, delayed update, target smoothing (eq. 32–38) | Not started |
 | **M9** | `train.py` | Training loop / full Algorithm 1 | Not started |
