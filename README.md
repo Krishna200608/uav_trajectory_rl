@@ -1,14 +1,43 @@
 # PKTD3-TD: 3-D UAV Trajectory Design via Deep Reinforcement Learning
 
-This repository provides an industry-standard Python implementation reproducing the **PKTD3-TD** (Prior-Knowledge-guided Twin Delayed Deep Deterministic Policy Gradient with Temporal Difference) algorithm and benchmark suite from the paper:
+*A from-scratch reproduction of a prior-knowledge-guided TD3 algorithm for UAV-assisted communication networks.*
 
-> M. Li, M. Dong, H. Wang, and H. Wang, "3-D Trajectory Design Based on Deep Reinforcement Learning for UAV-Assisted Communication Networks," *IEEE Transactions on Network Science and Engineering*, vol. 13, 2026.
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![Status](https://img.shields.io/badge/status-in%20development-yellow)
+![License](https://img.shields.io/badge/license-academic-lightgrey)
 
-Developed as the course project for **Data Management in Mobile and Sensor Networks (DMMSN)**.
+## Overview
 
----
+In wireless mobile networks, an unmanned aerial vehicle (UAV) can serve as an aerial base station to collect data from moving ground users. Operating in a three-dimensional service area, the UAV must decide its flight speed and direction each second to maximize data throughput while minimizing battery propulsion energy, all while respecting physical acceleration, altitude boundaries, and total mission time limits.
 
-## Team & Supervision
+This repository implements the PKTD3-TD algorithm, which models the trajectory optimization problem as a continuous Markov Decision Process (MDP) and solves it using Twin Delayed Deep Deterministic Policy Gradient (TD3) reinforcement learning. Rather than relying entirely on uniform random exploration during early training, the algorithm incorporates a heuristic prior-knowledge exploration policy that biases early flights toward the destination, stabilizing training and improving sample efficiency.
+
+Developed as a coursework project for Data Management in Mobile and Sensor Networks (DMMSN) at IIIT Allahabad, this codebase focuses on mathematical fidelity to the source formulation, modular component boundaries, and comprehensive unit testing.
+
+## Table of contents
+
+- [Overview](#overview)
+- [Paper and citation](#paper-and-citation)
+- [Team and supervision](#team-and-supervision)
+- [Quickstart](#quickstart)
+- [Project structure](#project-structure)
+- [Implementation status](#implementation-status)
+- [Tech stack](#tech-stack)
+- [Contributing and acknowledgments](#contributing-and-acknowledgments)
+
+## Paper and citation
+
+This project reproduces the system model, MDP formulation, and learning algorithm presented in:
+
+```text
+M. Li, M. Dong, H. Wang, and H. Wang, "3-D Trajectory Design Based on
+Deep Reinforcement Learning for UAV-Assisted Communication Networks,"
+IEEE Transactions on Network Science and Engineering, vol. 13, 2026.
+```
+
+This repository is an independent academic reproduction created for educational purposes and is not affiliated with or endorsed by the original authors.
+
+## Team and supervision
 
 - **Student Team (Group 5):**
   - Krishna Sikheriya
@@ -18,104 +47,122 @@ Developed as the course project for **Data Management in Mobile and Sensor Netwo
 - **Supervisor:**
   - Nayanjit Talukdar (PhD Scholar, WSN Lab, Department of IT, IIIT Allahabad)
 
----
+## Quickstart
 
-## Installation & Setup
+### Environment setup
 
-1. **Clone the repository:**
+1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Krishna200608/uav_trajectory_rl.git
    cd uav_trajectory_rl
    ```
 
-2. **Create and activate a virtual environment:**
-   - **Linux / macOS:**
+2. Create and activate a virtual environment:
+
+   - Linux / macOS:
      ```bash
      python -m venv .venv
      source .venv/bin/activate
      ```
-   - **Windows (PowerShell):**
+
+   - Windows (PowerShell):
      ```powershell
      python -m venv .venv
      .\.venv\Scripts\Activate.ps1
      ```
 
-3. **Install the package in editable mode with development dependencies:**
+3. Install the package in editable mode with development dependencies:
    ```bash
    pip install -e ".[dev]"
    ```
 
----
+### Running tests
 
-## Running Tests
-
-Execute the comprehensive test suite using pytest:
+Run the complete test suite:
 ```bash
 pytest tests/ -v
 ```
 
----
+## Project structure
 
-## Project Structure & Module Map
-
-```
+```text
 uav_trajectory_rl/
-├── src/
-│   └── uav_trajectory_rl/
-│       ├── __init__.py
-│       ├── config.py              # System parameters, environment geometry & RL hyperparams
-│       ├── uav_kinematics.py       # Spherical motion & acceleration constraints (eq. 1–3)
-│       ├── user_mobility.py        # Gauss-Markov ground user mobility model (eq. 4–7)
-│       ├── channel_model.py        # Probabilistic LoS/NLoS path loss & rate (eq. 8–14)
-│       ├── energy_model.py         # Rotary-wing propulsion energy consumption (eq. 15–16)
-│       ├── mdp_environment.py     # Gym-like MDP environment wrapper (eq. 17–29, Alg. 1)
-│       └── prior_knowledge_policy.py # Prior-knowledge exploration policy (eq. 30–31)
-├── tests/
-│   ├── __init__.py
-│   ├── test_channel_model.py       # LoS probability, path loss & rate tests
-│   ├── test_energy_model.py        # Propulsion power & energy tests
-│   ├── test_mdp_environment.py     # State space dim (2K+6) & MDP step loop tests
-│   ├── test_prior_knowledge_policy.py # PK generation, un-normalization & dispatch tests
-│   ├── test_uav_kinematics.py      # Kinematics displacement & accel clipping tests
-│   └── test_user_mobility.py       # UserSwarm initialization & Gauss-Markov step tests
-├── docs/
-│   └── PKTD3-TD_Tracker.md         # Source grounding, parameters, assumptions & review notes
-├── scripts/                        # Training and benchmark execution scripts
-├── pyproject.toml                  # Packaging configuration (src layout)
-├── README.md
-└── .gitignore
+|-- .gitignore
+|-- README.md
+|-- pyproject.toml
+|-- docs/
+|   \-- PKTD3-TD_Tracker.md             # Ground-truth parameters, assumptions, and review notes
+|-- scripts/
+|   \-- .gitkeep                        # Execution and training scripts
+|-- src/
+|   \-- uav_trajectory_rl/
+|       |-- __init__.py                 # Package root
+|       |-- channel_model.py            # LoS/NLoS path loss and Shannon rate (eq. 8-14)
+|       |-- config.py                   # System constants, physical bounds, and RL parameters
+|       |-- energy_model.py             # Rotary-wing propulsion power and energy (eq. 15-16)
+|       |-- mdp_environment.py          # Continuous MDP environment and 6 reward terms (eq. 17-29)
+|       |-- prior_knowledge_policy.py   # Heuristic PK generator and action dispatcher (eq. 30-31)
+|       |-- uav_kinematics.py           # 3D spherical kinematics and acceleration capping (eq. 1-3)
+|       \-- user_mobility.py            # Gauss-Markov ground user swarm mobility (eq. 4-7)
+\-- tests/
+    |-- __init__.py
+    |-- test_channel_model.py           # Channel attenuation and transmission rate tests
+    |-- test_energy_model.py            # Power components and hovering energy tests
+    |-- test_mdp_environment.py         # State dimensionality and MDP transition tests
+    |-- test_prior_knowledge_policy.py  # Action generation, un-normalization, and dispatch tests
+    |-- test_uav_kinematics.py          # Spherical motion updates and acceleration limits tests
+    \-- test_user_mobility.py           # User swarm bounds and Gauss-Markov step tests
 ```
 
-### Module Implementation Map
+## Implementation status
 
-| ID | File / Module | Paper Section / Equations | Status |
+### Module roadmap
+
+- [x] M0 -- Shared config and constants
+- [x] M1 -- UAV kinematics (eq. 1-3)
+- [x] M2 -- User mobility -- Gauss-Markov (eq. 4-7)
+- [ ] M3 -- Channel model -- LoS, path loss, rate (eq. 8-14; eq. 13 fix pending re-review)
+- [x] M4 -- UAV energy and propulsion model (eq. 15-16)
+- [x] M5 -- MDP env wrapper -- state, action, 6-term reward, step (eq. 17-29)
+- [ ] M6 -- Prior-knowledge exploration policy (eq. 30-31; implemented, pending review)
+- [ ] M7 -- TD3 networks and replay buffer
+- [ ] M8 -- TD3 update rules (eq. 32-38)
+- [ ] M9 -- Training loop (Algorithm 1)
+- [ ] M10 -- Baseline: TDPK
+- [ ] M11 -- Baseline: Dueling DQL
+- [ ] M12 -- Baseline: PPO
+- [ ] M13 -- Baseline: Greedy
+- [ ] M14 -- Evaluation and plotting suite (Figs. 4-12, Tables IV-VI)
+
+### Detailed module tracking
+
+| ID | File / Module | Paper Scope | Status |
 |---|---|---|---|
-| **M0** | `src/uav_trajectory_rl/config.py` | Tables II, III & Section V-A constants | **Done — reviewed, approved** |
-| **M1** | `src/uav_trajectory_rl/uav_kinematics.py` | Spherical kinematics (eq. 1–3) | **Done — reviewed, approved** |
-| **M2** | `src/uav_trajectory_rl/user_mobility.py` | Gauss-Markov user mobility (eq. 4–7) | **Done — reviewed, approved** |
-| **M3** | `src/uav_trajectory_rl/channel_model.py` | LoS probability, path loss & rate (eq. 8–14) | **Done — reviewed, approved (eq. 13 verified)** |
-| **M4** | `src/uav_trajectory_rl/energy_model.py` | Rotary-wing propulsion power (eq. 15–16) | **Done — reviewed, approved** |
-| **M5** | `src/uav_trajectory_rl/mdp_environment.py` | State, action, 6-term reward & step (eq. 17–29) | **Done — reviewed, approved** |
-| **M6** | `src/uav_trajectory_rl/prior_knowledge_policy.py` | Prior-knowledge guidance policy (eq. 30–31) | **Implemented — pending review** |
-| **M7** | `td3_networks.py` | Actor-critic networks & replay buffer | Not started |
-| **M8** | `td3_agent.py` | Clipped double-Q, delayed update, target smoothing (eq. 32–38) | Not started |
-| **M9** | `train.py` | Training loop / full Algorithm 1 | Not started |
-| **M10–M13** | Baselines | TDPK, Dueling DQL, PPO, Greedy | Not started |
-| **M14** | Evaluation | Plotting suite (Figs. 4–12, Tables IV–VI) | Not started |
+| M0 | `config.py` | Tables II, III and Sec. V-A constants | Done (reviewed, approved) |
+| M1 | `uav_kinematics.py` | Kinematics and acceleration limits (eq. 1-3) | Done (reviewed, approved) |
+| M2 | `user_mobility.py` | Gauss-Markov user mobility (eq. 4-7) | Done (reviewed, approved) |
+| M3 | `channel_model.py` | LoS probability, path loss, and rate (eq. 8-14) | In progress (eq. 13 fix pending re-review) |
+| M4 | `energy_model.py` | Rotary-wing propulsion energy (eq. 15-16) | Done (reviewed, approved) |
+| M5 | `mdp_environment.py` | Full MDP env and 6 reward terms (eq. 17-29) | Done (reviewed, approved) |
+| M6 | `prior_knowledge_policy.py` | PK guidance and action dispatch (eq. 30-31) | Implemented (pending review) |
+| M7 | `td3_networks.py` | Actor-critic networks and replay buffer | Not started |
+| M8 | `td3_agent.py` | Clipped double-Q and target smoothing (eq. 32-38) | Not started |
+| M9 | `train.py` | Training loop (Algorithm 1) | Not started |
+| M10-M13 | Baselines | TDPK, Dueling DQL, PPO, Greedy | Not started |
+| M14 | Evaluation | Plotting suite (Figs. 4-12, Tables IV-VI) | Not started |
 
-> For full parameter grounding, mathematical derivations, documented paper corrections, and review notes, see [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md).
+Full parameter grounding, paper corrections, and review notes: [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md)
 
----
+## Tech stack
 
-## Current Project Status
+- **Python 3.10+**: Core programming language.
+- **NumPy**: Matrix operations, vector math, and Gauss-Markov noise generation.
+- **Pytest**: Automated test discovery and test assertion framework.
+- **PyTorch** *(planned)*: Deep neural network construction for M7 (actor-critic networks).
+- **Matplotlib** *(planned)*: Visualizations and performance curve generation for M14.
 
-- **Completed & Verified Modules (M0–M5):**
-  - System configuration with typed constants and documented assumptions.
-  - 3D spherical UAV kinematics with strict acceleration capping.
-  - Reproducible multi-user Gauss-Markov mobility simulator.
-  - Air-to-ground probabilistic channel model faithful to literal paper formulation ($\log_2(\text{SNR})$).
-  - Aerodynamic propulsion power model derived via momentum theory.
-  - Complete MDP environment with 6-term reward structure and corrected destination-proximity formulation.
-  - 100% test pass rate across 19 unit and integration tests.
-- **Upcoming Modules (M6–M14):**
-  - Prior-knowledge policy initialization, TD3 network architectures, training loop, baselines, and evaluation plots.
+## Contributing and acknowledgments
+
+This repository is an academic coursework project developed exclusively by the Group 5 student team at IIIT Allahabad and does not accept external pull requests or issues.
+
+Guidance and technical review are provided by supervisor Nayanjit Talukdar (PhD Scholar, WSN Lab, Department of IT, IIIT Allahabad). We also acknowledge the authors of the original IEEE TNSE publication for their algorithmic formulations.
