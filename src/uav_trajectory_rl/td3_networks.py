@@ -97,6 +97,8 @@ class Actor(nn.Module):
         Returns:
             torch.Tensor: Bounded action tensor of shape (batch_size, action_dim).
         """
+        if state.device != self.device:
+            state = state.to(self.device)
         features = self.net(state)
         return self.max_action * torch.tanh(self.out_layer(features))
 
@@ -174,6 +176,10 @@ class TwinCritic(nn.Module):
         Returns:
             Tuple[torch.Tensor, torch.Tensor]: (Q1, Q2) values, each of shape (batch_size, 1).
         """
+        if state.device != self.device:
+            state = state.to(self.device)
+        if action.device != self.device:
+            action = action.to(self.device)
         sa = torch.cat([state, action], dim=-1)
         q1 = self.q1_out(self.q1_net(sa))
         q2 = self.q2_out(self.q2_net(sa))
@@ -190,6 +196,10 @@ class TwinCritic(nn.Module):
         Returns:
             torch.Tensor: Q1 values of shape (batch_size, 1).
         """
+        if state.device != self.device:
+            state = state.to(self.device)
+        if action.device != self.device:
+            action = action.to(self.device)
         sa = torch.cat([state, action], dim=-1)
         return self.q1_out(self.q1_net(sa))
 

@@ -104,13 +104,19 @@ def propulsion_power(
         v0 = induced_velocity_hover(uav_w=uav_w, uav_rho=uav_rho, uav_a=uav_a)
 
     # 1. Pitch angle tau_c relative to horizontal xy-plane
-    tau_c = 0.5 * math.pi - lam_n
+    # In rotary-wing flight, the aircraft fuselage and rotor disc pitch tilt is
+    # mechanically and aerodynamically bounded within a flight envelope (typically <= 60-70 deg).
+    # Clamping tau_c to [-70 deg, +70 deg] prevents the mathematical singularity where
+    # cos(tau_c) -> 0 as lambda -> 0 (vertical climb) or lambda -> pi (vertical descent),
+    # which would otherwise divide by near-zero, producing unphysical trillions of Watts
+    # and corrupting RL policy gradients.
+    raw_tau = 0.5 * math.pi - lam_n
+    max_pitch_rad = math.radians(70.0)
+    tau_c = max(-max_pitch_rad, min(max_pitch_rad, raw_tau))
+
     cos_tau = math.cos(tau_c)
     sin_tau = math.sin(tau_c)
-
-    # Safe cos_tau to prevent zero-division in pure vertical flight
-    safe_cos_tau = cos_tau if abs(cos_tau) > 1e-7 else math.copysign(1e-7, cos_tau if cos_tau != 0 else 1.0)
-    tan_tau = sin_tau / safe_cos_tau
+    tan_tau = math.tan(tau_c)
 
     # 2. Longitudinal velocity component V_y and longitudinal air resistance F_y
     # ASSUMPTION: V_y corresponds to the horizontal speed component v_n * sin(lam_n)
@@ -119,7 +125,7 @@ def propulsion_power(
 
     # 3. Induced-power correction factor (m_tilde)
     # Computed from the paper text formula: m_tilde = (W - F_y) / (W * cos(tau_c))
-    m_tilde = (uav_w - f_y) / (uav_w * safe_cos_tau)
+    m_tilde = (uav_w - f_y) / (uav_w * cos_tau)
 
     # --------------------------------------------------------------------------
     # Power Term 1: Blade Profile Power
@@ -129,7 +135,7 @@ def propulsion_power(
     # --------------------------------------------------------------------------
     # Power Term 2: Induced Power
     # --------------------------------------------------------------------------
-    effective_weight = max(0.0, uav_w - (f_y / safe_cos_tau))
+    effective_weight = max(0.0, uav_w - (f_y / cos_tau))
     weight_factor = (effective_weight**1.5) / math.sqrt(2.0 * uav_rho * uav_a)
 
     term_v0 = (v_n**2) / (2.0 * (v0**2))
@@ -149,7 +155,7 @@ def propulsion_power(
     # --------------------------------------------------------------------------
     p_parasite = 0.5 * uav_rho * uav_s * uav_a * (v_n**3) * uav_d0 * (cos_tau**2)
 
-    total_power = p_blade + p_induced + p_climb + p_parasite
+    total_power = max(0.0, p_blade + p_induced + p_climb + p_parasite)
     return float(total_power)
 
 

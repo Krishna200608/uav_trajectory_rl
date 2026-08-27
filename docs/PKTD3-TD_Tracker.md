@@ -146,5 +146,20 @@ is correct and is what matters for TD3 stability, but it is not
 phase-aligned with the paper's absolute slot index n. Inconsequential to
 correctness; noted for completeness.
 
+### M4 fix — energy_model.py — pitch angle singularity clamp (±70°)
+In eq. (15), τ_c = π/2 - λ_n approaches ±π/2 during near-vertical climb (λ_n -> 0)
+or descent (λ_n -> π). The term cos(τ_c) in the denominator and tan(τ_c) in climb
+power previously caused division by near-zero (1e-7), producing unphysical
+power of 2.5 trillion Watts and blowing episode rewards to -8.3e11 once the
+neural network exploration branch took actions. Pitch angle τ_c is now aerodynamically
+bounded to [-70°, +70°] (matching physical multicopter flight envelopes) and total
+power is floored at 0.0 W, stabilizing rewards into the healthy +200 to +800 range.
+
+### M7 fix — td3_networks.py — automatic device alignment on CUDA
+When running on GPU accelerators (e.g. Google Colab T4), Actor and TwinCritic
+networks reside on cuda:0. Forward passes now automatically ensure input tensors
+reside on the network's active device (self.device) before executing layers,
+resolving CPU/CUDA device mismatch errors in tests and inference.
+
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*

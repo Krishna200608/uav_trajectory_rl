@@ -50,4 +50,4 @@ def test_env_20_random_steps():
         if done:
             break
 
-    assert math.isclose(cumulative_reward, 12.7987, abs_tol=1e-2)
+    assert math.isclose(cumulative_reward, 21.8817, abs_tol=1e-2)

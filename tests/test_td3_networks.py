@@ -20,8 +20,8 @@ def test_actor_forward_shape_and_bounds():
     actor = Actor(state_dim=state_dim, action_dim=action_dim, max_action=c)
     actor.eval()
 
-    # Forward pass with a mini-batch
-    dummy_states = torch.randn(batch_size, state_dim)
+    # Forward pass with a mini-batch (created on actor.device)
+    dummy_states = torch.randn(batch_size, state_dim, device=actor.device)
     with torch.no_grad():
         actions = actor(dummy_states)
 
@@ -29,12 +29,18 @@ def test_actor_forward_shape_and_bounds():
     assert (actions >= -c).all() and (actions <= c).all()
 
     # Empirical stress test across 100 random state vectors
-    stress_states = torch.randn(100, state_dim) * 500.0  # large dynamic range
+    stress_states = torch.randn(100, state_dim, device=actor.device) * 500.0  # large dynamic range
     with torch.no_grad():
         stress_actions = actor(stress_states)
 
     assert stress_actions.shape == (100, action_dim)
     assert (stress_actions >= -c).all() and (stress_actions <= c).all()
+
+    # Cross-device test: passing CPU tensor to actor must work seamlessly via internal .to(self.device)
+    cpu_states = torch.randn(batch_size, state_dim, device="cpu")
+    with torch.no_grad():
+        cpu_actions = actor(cpu_states)
+    assert cpu_actions.shape == (batch_size, action_dim)
 
 
 def test_twin_critic_forward_and_q1_consistency():
@@ -45,8 +51,8 @@ def test_twin_critic_forward_and_q1_consistency():
     critic = TwinCritic(state_dim=state_dim, action_dim=action_dim)
     critic.eval()
 
-    dummy_states = torch.randn(batch_size, state_dim)
-    dummy_actions = torch.randn(batch_size, action_dim)
+    dummy_states = torch.randn(batch_size, state_dim, device=critic.device)
+    dummy_actions = torch.randn(batch_size, action_dim, device=critic.device)
 
     with torch.no_grad():
         q1, q2 = critic(dummy_states, dummy_actions)
@@ -58,6 +64,13 @@ def test_twin_critic_forward_and_q1_consistency():
 
     # q1 from forward() and q1_forward() must match exactly for identical inputs
     assert torch.allclose(q1, q1_direct, atol=1e-7)
+
+    # Cross-device test: passing CPU tensor to critic must work seamlessly
+    cpu_states = torch.randn(batch_size, state_dim, device="cpu")
+    cpu_actions = torch.randn(batch_size, action_dim, device="cpu")
+    with torch.no_grad():
+        q1_cpu, q2_cpu = critic(cpu_states, cpu_actions)
+    assert q1_cpu.shape == (batch_size, 1)
 
 
 def test_replay_buffer_capacity_and_circular_overwrite():
