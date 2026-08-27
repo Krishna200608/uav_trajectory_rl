@@ -100,6 +100,9 @@ uav_trajectory_rl/
 |-- src/
 |   \-- uav_trajectory_rl/
 |       |-- __init__.py                 # Package root
+|       |-- baselines/                  # Evaluation baseline algorithms (M10-M13)
+|       |   |-- __init__.py
+|       |   \-- tdpk.py                 # Prior-knowledge direct flight baseline (M10)
 |       |-- channel_model.py            # LoS/NLoS path loss and Shannon rate (eq. 8-14)
 |       |-- config.py                   # System constants, physical bounds, and RL parameters
 |       |-- energy_model.py             # Rotary-wing propulsion power and energy (eq. 15-16)
@@ -111,6 +114,7 @@ uav_trajectory_rl/
 │       └── user_mobility.py            # Gauss-Markov ground user swarm mobility (eq. 4-7)
 └── tests/
     ├── __init__.py
+    ├── test_baselines_tdpk.py          # TDPK direct-flight geometry and evaluation tests
     ├── test_channel_model.py           # Channel attenuation and transmission rate tests
     ├── test_energy_model.py            # Power components and hovering energy tests
     ├── test_mdp_environment.py         # State dimensionality and MDP transition tests
@@ -156,7 +160,8 @@ uav_trajectory_rl/
 | M7 | `td3_networks.py` | Actor-critic networks and replay buffer | Done (reviewed, approved) |
 | M8 | `td3_agent.py` | Clipped double-Q and target smoothing (eq. 32-38) | Done (reviewed, approved) |
 | M9 | `scripts/train.py` | Training loop (Algorithm 1) | Done (reviewed, approved) |
-| M10-M13 | Baselines | TDPK, Dueling DQL, PPO, Greedy | Not started |
+| M10 | `baselines/tdpk.py` | Baseline: TDPK (direct-to-destination flight) | Implemented (pending review) |
+| M11-M13 | Baselines | Dueling DQL, PPO, Greedy | Not started |
 | M14 | Evaluation | Plotting suite (Figs. 4-12, Tables IV-VI) | Not started |
 
 Full parameter grounding, paper corrections, and review notes: [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md)
