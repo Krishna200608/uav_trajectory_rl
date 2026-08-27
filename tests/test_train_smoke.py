@@ -1,8 +1,17 @@
 import os
+from pathlib import Path
+import sys
 import numpy as np
 import pytest
 import torch
 
+# Ensure repository root is on sys.path so 'scripts.train' can be resolved
+# regardless of current working directory or test runner invocation path.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+import scripts.train
 from scripts.train import main
 import uav_trajectory_rl.config
 import uav_trajectory_rl.prior_knowledge_policy
@@ -15,10 +24,12 @@ def test_training_smoke_run(tmp_path, monkeypatch):
     Uses a low r_rand threshold (5 steps) and batch_size (8) so that the network-driven branch
     and TD3 gradient updates are actively exercised during the test run.
     """
-    # Monkeypatch R_RAND in config and prior_knowledge_policy
     tiny_r_rand = 5
+
+    # Monkeypatch R_RAND across config, policy, and training script
     monkeypatch.setattr(uav_trajectory_rl.config, "R_RAND", tiny_r_rand)
     monkeypatch.setattr(uav_trajectory_rl.prior_knowledge_policy, "R_RAND", tiny_r_rand)
+    monkeypatch.setattr(scripts.train, "R_RAND", tiny_r_rand)
 
     checkpoint_dir = str(tmp_path / "checkpoints")
 
@@ -56,7 +67,11 @@ def test_training_smoke_run(tmp_path, monkeypatch):
     assert np.allclose(saved_rewards, rewards)
 
     # 4. Verify that the network-driven branch and train_step were actually executed
-    # Load final checkpoint and verify total_updates > 0
-    checkpoint_data = torch.load(final_ckpt, map_location="cpu", weights_only=True)
+    # Safely load final checkpoint across PyTorch versions
+    try:
+        checkpoint_data = torch.load(final_ckpt, map_location="cpu", weights_only=True)
+    except Exception:
+        checkpoint_data = torch.load(final_ckpt, map_location="cpu", weights_only=False)
+
     total_updates = checkpoint_data["total_updates"]
     assert total_updates > 0, f"Expected total_updates > 0, got {total_updates}"
