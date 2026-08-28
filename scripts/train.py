@@ -25,7 +25,10 @@ Execution Flow:
 """
 
 import argparse
+import glob
+import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import List, Optional
@@ -68,6 +71,8 @@ def main(
     log_every: int = 10,
     r_rand: int = R_RAND,
     use_progress_bar: bool = True,
+    resume: bool = False,
+    resume_from: Optional[str] = None,
 ) -> List[float]:
     """
     Execute the PKTD3-TD training procedure (Algorithm 1).
@@ -81,6 +86,9 @@ def main(
         checkpoint_every: Interval of episodes between saving intermediate checkpoints.
         log_every: Interval of episodes between logging progress to stdout.
         r_rand: Exploration threshold R_rand for prior-knowledge guidance (default: R_RAND = 20000).
+        use_progress_bar: Whether to display interactive tqdm progress bar with ETA.
+        resume: Whether to automatically resume from the latest checkpoint in checkpoint_dir.
+        resume_from: Explicit path to a checkpoint file (.pt) to resume training from.
 
     Returns:
         List[float]: Cumulative scalar reward achieved in each episode.
@@ -104,18 +112,78 @@ def main(
     # This matches the paper's formal semantics in eq. (31) and Algorithm 1 Line 17.
     # ==========================================================================
     replay_experience_count: int = 0
+    start_episode: int = 1
+
+    # Checkpoint resumption logic
+    if resume or resume_from is not None:
+        target_ckpt = None
+        if resume_from is not None and os.path.isfile(resume_from):
+            target_ckpt = resume_from
+        else:
+            state_file = os.path.join(checkpoint_dir, "training_state.json")
+            if os.path.exists(state_file):
+                try:
+                    with open(state_file, "r") as f:
+                        meta = json.load(f)
+                    last_ep = meta.get("last_episode", 0)
+                    candidate = os.path.join(checkpoint_dir, f"td3_agent_ep{last_ep}.pt")
+                    if os.path.isfile(candidate):
+                        target_ckpt = candidate
+                except Exception:
+                    pass
+            if target_ckpt is None:
+                ckpts = glob.glob(os.path.join(checkpoint_dir, "td3_agent_ep*.pt"))
+                if ckpts:
+                    target_ckpt = max(
+                        ckpts,
+                        key=lambda f: int(re.search(r"ep(\d+)", f).group(1)) if re.search(r"ep(\d+)", f) else 0,
+                    )
+
+        if target_ckpt and os.path.isfile(target_ckpt):
+            agent.load(target_ckpt)
+            m = re.search(r"ep(\d+)", os.path.basename(target_ckpt))
+            last_ep = int(m.group(1)) if m else 0
+            start_episode = last_ep + 1
+
+            state_file = os.path.join(checkpoint_dir, "training_state.json")
+            if os.path.exists(state_file):
+                try:
+                    with open(state_file, "r") as f:
+                        meta = json.load(f)
+                    replay_experience_count = int(meta.get("replay_experience_count", last_ep * 200))
+                except Exception:
+                    replay_experience_count = last_ep * 200
+            else:
+                replay_experience_count = last_ep * 200
+
+            rewards_file = os.path.join(checkpoint_dir, "episode_rewards.npy")
+            if os.path.exists(rewards_file):
+                try:
+                    saved_arr = np.load(rewards_file)
+                    episode_rewards = list(saved_arr[:last_ep])
+                except Exception:
+                    episode_rewards = []
 
     print("=" * 70)
     print("PKTD3-TD Training Initialization")
-    print(f"  Episodes: {num_episodes} | Users K: {k_users} | State Dim: {state_dim}")
+    print(f"  Episodes: {start_episode}..{num_episodes} | Users K: {k_users} | State Dim: {state_dim}")
     print(f"  Batch Size: {batch_size} | Buffer Capacity: {REPLAY_SIZE} | R_rand: {r_rand}")
     print(f"  Checkpoints: {checkpoint_dir} (every {checkpoint_every} eps)")
+    if start_episode > 1:
+        print(f"  [RESUME] Active: Continuing from Episode {start_episode} (R_ex={replay_experience_count})")
     print("=" * 70)
 
-    ep_iterator = range(1, num_episodes + 1)
+    ep_iterator = range(start_episode, num_episodes + 1)
     pbar = None
     if use_progress_bar and tqdm is not None:
-        pbar = tqdm(ep_iterator, desc="PKTD3-TD Training", unit="ep", dynamic_ncols=True)
+        pbar = tqdm(
+            ep_iterator,
+            desc="PKTD3-TD Training",
+            unit="ep",
+            dynamic_ncols=True,
+            initial=start_episode - 1,
+            total=num_episodes,
+        )
         ep_iterator = pbar
 
     for episode in ep_iterator:
@@ -187,6 +255,23 @@ def main(
             # Intermediate save of reward array so external monitors / Drive can track live progress
             rewards_file = os.path.join(checkpoint_dir, "episode_rewards.npy")
             np.save(rewards_file, np.array(episode_rewards, dtype=np.float32))
+
+            # Save state metadata for seamless resumption
+            state_file = os.path.join(checkpoint_dir, "training_state.json")
+            try:
+                with open(state_file, "w") as f:
+                    json.dump(
+                        {
+                            "last_episode": episode,
+                            "replay_experience_count": replay_experience_count,
+                            "total_updates": agent.total_updates,
+                        },
+                        f,
+                        indent=2,
+                    )
+            except Exception:
+                pass
+
             ckpt_msg = f"  --> Checkpoint saved: {ckpt_file}"
             if pbar is not None:
                 pbar.write(ckpt_msg)
@@ -218,6 +303,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--log-every", type=int, default=10, help="Logging interval in episodes")
     parser.add_argument("--r-rand", type=int, default=R_RAND, help="Prior knowledge exploration threshold R_rand")
     parser.add_argument("--no-progress", action="store_true", help="Disable visual tqdm progress bar")
+    parser.add_argument("--resume", action="store_true", help="Resume training from latest checkpoint in checkpoint-dir")
+    parser.add_argument("--resume-from", type=str, default=None, help="Explicit checkpoint file (.pt) to resume from")
     return parser.parse_args()
 
 
@@ -233,4 +320,6 @@ if __name__ == "__main__":
         log_every=args.log_every,
         r_rand=args.r_rand,
         use_progress_bar=not args.no_progress,
+        resume=args.resume,
+        resume_from=args.resume_from,
     )

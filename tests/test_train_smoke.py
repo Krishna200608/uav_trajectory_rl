@@ -75,3 +75,52 @@ def test_training_smoke_run(tmp_path, monkeypatch):
 
     total_updates = checkpoint_data["total_updates"]
     assert total_updates > 0, f"Expected total_updates > 0, got {total_updates}"
+
+
+def test_training_resume_run(tmp_path, monkeypatch):
+    """
+    Verify that training can pause, save state, and resume from a saved checkpoint.
+    """
+    tiny_r_rand = 5
+    monkeypatch.setattr(uav_trajectory_rl.config, "R_RAND", tiny_r_rand)
+    monkeypatch.setattr(uav_trajectory_rl.prior_knowledge_policy, "R_RAND", tiny_r_rand)
+    monkeypatch.setattr(scripts.train, "R_RAND", tiny_r_rand)
+
+    checkpoint_dir = str(tmp_path / "checkpoints_resume")
+
+    # Run phase 1: 3 episodes, checkpoint at ep3
+    phase1_rewards = main(
+        num_episodes=3,
+        k_users=3,
+        batch_size=8,
+        seed=42,
+        checkpoint_dir=checkpoint_dir,
+        checkpoint_every=3,
+        log_every=100,
+        r_rand=tiny_r_rand,
+        use_progress_bar=False,
+    )
+    assert len(phase1_rewards) == 3
+
+    # Run phase 2: resume to 6 episodes total
+    phase2_rewards = main(
+        num_episodes=6,
+        k_users=3,
+        batch_size=8,
+        seed=42,
+        checkpoint_dir=checkpoint_dir,
+        checkpoint_every=3,
+        log_every=100,
+        r_rand=tiny_r_rand,
+        use_progress_bar=False,
+        resume=True,
+    )
+
+    # Should have accumulated all 6 episodes
+    assert len(phase2_rewards) == 6
+    assert np.allclose(phase2_rewards[:3], phase1_rewards)
+
+    # Check that ep6 checkpoint exists
+    ep6_ckpt = os.path.join(checkpoint_dir, "td3_agent_ep6.pt")
+    assert os.path.isfile(ep6_ckpt)
+
