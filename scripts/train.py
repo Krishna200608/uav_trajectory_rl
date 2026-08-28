@@ -41,6 +41,11 @@ from uav_trajectory_rl.prior_knowledge_policy import select_action
 from uav_trajectory_rl.td3_agent import TD3Agent
 from uav_trajectory_rl.td3_networks import ReplayBuffer
 
+try:
+    from tqdm.auto import tqdm
+except ImportError:
+    tqdm = None
+
 
 def main(
     num_episodes: int = M_EPISODES,
@@ -51,6 +56,7 @@ def main(
     checkpoint_every: int = 500,
     log_every: int = 10,
     r_rand: int = R_RAND,
+    use_progress_bar: bool = True,
 ) -> List[float]:
     """
     Execute the PKTD3-TD training procedure (Algorithm 1).
@@ -95,7 +101,13 @@ def main(
     print(f"  Checkpoints: {checkpoint_dir} (every {checkpoint_every} eps)")
     print("=" * 70)
 
-    for episode in range(1, num_episodes + 1):
+    ep_iterator = range(1, num_episodes + 1)
+    pbar = None
+    if use_progress_bar and tqdm is not None:
+        pbar = tqdm(ep_iterator, desc="PKTD3-TD Training", unit="ep", dynamic_ncols=True)
+        ep_iterator = pbar
+
+    for episode in ep_iterator:
         state = env.reset()
         episode_reward = 0.0
         done = False
@@ -131,18 +143,47 @@ def main(
 
         episode_rewards.append(float(episode_reward))
 
+        # Recent rolling average
+        window_size = min(len(episode_rewards), log_every)
+        recent_avg = float(np.mean(episode_rewards[-window_size:]))
+
+        if pbar is not None:
+            pbar.set_postfix(
+                {
+                    "reward": f"{episode_reward:+7.1f}",
+                    f"avg{window_size}": f"{recent_avg:+7.1f}",
+                    "R_ex": replay_experience_count,
+                    "updates": agent.total_updates,
+                }
+            )
+
         if episode % log_every == 0:
-            recent_avg = float(np.mean(episode_rewards[-log_every:]))
-            print(
+            log_msg = (
                 f"Episode {episode:4d}/{num_episodes:4d} | "
                 f"reward={episode_reward:+8.3f} | "
                 f"avg(last {log_every:2d})={recent_avg:+8.3f} | "
-                f"R_ex={replay_experience_count}"
+                f"R_ex={replay_experience_count} | "
+                f"updates={agent.total_updates}"
             )
+            if pbar is not None:
+                pbar.write(log_msg)
+            else:
+                print(log_msg, flush=True)
 
         if episode % checkpoint_every == 0:
             ckpt_file = os.path.join(checkpoint_dir, f"td3_agent_ep{episode}.pt")
             agent.save(ckpt_file)
+            # Intermediate save of reward array so external monitors / Drive can track live progress
+            rewards_file = os.path.join(checkpoint_dir, "episode_rewards.npy")
+            np.save(rewards_file, np.array(episode_rewards, dtype=np.float32))
+            ckpt_msg = f"  --> Checkpoint saved: {ckpt_file}"
+            if pbar is not None:
+                pbar.write(ckpt_msg)
+            else:
+                print(ckpt_msg, flush=True)
+
+    if pbar is not None:
+        pbar.close()
 
     # Save final model weights and reward trajectory
     final_ckpt = os.path.join(checkpoint_dir, "td3_agent_final.pt")
@@ -150,7 +191,7 @@ def main(
     rewards_file = os.path.join(checkpoint_dir, "episode_rewards.npy")
     np.save(rewards_file, np.array(episode_rewards, dtype=np.float32))
 
-    print(f"Training complete. Final checkpoint saved to: {final_ckpt}")
+    print(f"Training complete. Final checkpoint saved to: {final_ckpt}", flush=True)
     return episode_rewards
 
 
@@ -165,6 +206,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--checkpoint-every", type=int, default=500, help="Checkpoint saving interval in episodes")
     parser.add_argument("--log-every", type=int, default=10, help="Logging interval in episodes")
     parser.add_argument("--r-rand", type=int, default=R_RAND, help="Prior knowledge exploration threshold R_rand")
+    parser.add_argument("--no-progress", action="store_true", help="Disable visual tqdm progress bar")
     return parser.parse_args()
 
 
@@ -179,4 +221,5 @@ if __name__ == "__main__":
         checkpoint_every=args.checkpoint_every,
         log_every=args.log_every,
         r_rand=args.r_rand,
+        use_progress_bar=not args.no_progress,
     )
