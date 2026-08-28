@@ -181,5 +181,20 @@ checkpoints/run1 IS INVALID and must not be used for baseline comparisons
 or M14 evaluation plots -- retain it in the repo for the record (do not
 delete), but treat it as a documented failed run, not a completed result.
 
+### Run 2 (checkpoints/run2) — VALID full 6,000-episode training run completed & verified
+Full 6,000-episode training was executed on Google Colab (T4 GPU) using the normalized
+state vector and gradient clipping. All 12 periodic checkpoints (ep500 through ep6000),
+final agent weights, and full reward trajectories were committed and pulled to `checkpoints/run2/`.
+Key empirical findings:
+1. Actor actively evolved across all 6,000 episodes without freezing (mean abs diff
+   between consecutive checkpoints: 0.78 at ep1000 -> 0.62 at ep1500 -> 0.23 at ep2000 ->
+   0.31 at ep2500 -> 0.13 at ep3000 -> 0.16 at ep6000).
+2. Final 100 episodes converged to an average reward of -65.66, an improvement of over
+   +210 reward points compared to the flat -276.10 plateau of run1.
+3. Training loop was enhanced with an interactive visual progress bar (tqdm), live ETA/speed
+   metrics, and seamless checkpoint resumption (`--resume` / `resume=True`), verified via unit tests.
+Status: `checkpoints/run2/` is the official, validated training run for all baseline comparisons (M10–M13)
+and evaluation suite figures (M14).
+
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*

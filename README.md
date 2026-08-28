@@ -91,7 +91,8 @@ uav_trajectory_rl/
 |-- README.md
 |-- pyproject.toml
 |-- checkpoints/
-|   \-- run1/                          # INVALID -- actor saturation, see docs/PKTD3-TD_Tracker.md
+|   |-- run1/                          # INVALID -- actor saturation, see docs/PKTD3-TD_Tracker.md
+|   \-- run2/                          # VALID -- full 6,000-episode trained model on Colab T4 GPU
 |-- docs/
 |   \-- PKTD3-TD_Tracker.md             # Ground-truth parameters, assumptions, and review notes
 |-- notebooks/
@@ -131,7 +132,7 @@ uav_trajectory_rl/
 
 ## Implementation status
 
-> **Note on Run 1 Invalidation:** An initial full training run (`checkpoints/run1/`) completed 6,000 episodes but produced a saturated, non-learning actor due to unnormalized state inputs. This has been root-caused and fixed (state normalization + gradient clipping); `run1` is retained in the repo for the record but **MUST NOT** be used for baseline comparisons or evaluation plots. See [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md)'s Review notes for full details. A corrected training run is pending.
+> **Training Status (Run 2 Complete & Validated):** An initial full training run (`checkpoints/run1/`) completed 6,000 episodes but was invalidated due to actor saturation from unnormalized state inputs. With state normalization and gradient clipping implemented, **Run 2 (`checkpoints/run2/`) completed the full 6,000-episode training on Google Colab T4 GPU**. The actor demonstrated active, non-saturated learning across all 6,000 episodes (`mean_abs_diff > 0.08` across checkpoints, reward improving by >210 points over run1). `checkpoints/run2/` is the **official, validated policy artifact** for all baseline comparisons and evaluation plots. See [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md)'s Review notes for full details.
 
 ### Module roadmap
 
@@ -144,7 +145,7 @@ uav_trajectory_rl/
 - [x] M6 -- Prior-knowledge exploration policy (eq. 30-31)
 - [x] M7 -- TD3 networks and replay buffer
 - [x] M8 -- TD3 update rules (eq. 32-38)
-- [x] M9 -- Training loop (Algorithm 1; state normalization & gradient clipping added; see run1 invalidation note)
+- [x] M9 -- Training loop (Algorithm 1; validated via run2)
 - [x] M10 -- Baseline: TDPK
 - [ ] M11 -- Baseline: Dueling DQL
 - [ ] M12 -- Baseline: PPO
@@ -164,7 +165,7 @@ uav_trajectory_rl/
 | M6 | `prior_knowledge_policy.py` | PK guidance and action dispatch (eq. 30-31) | Done (reviewed, approved) |
 | M7 | `td3_networks.py` | Actor-critic networks and replay buffer | Done (reviewed, approved) |
 | M8 | `td3_agent.py` | Clipped double-Q and target smoothing (eq. 32-38) | Done (reviewed, approved) |
-| M9 | `scripts/train.py` | Training loop (Algorithm 1) | Done (reviewed, approved; see run1 invalidation note) |
+| M9 | `scripts/train.py` | Training loop (Algorithm 1) | Done (reviewed, approved; validated via run2) |
 | M10 | `baselines/tdpk.py` | Baseline: TDPK (direct-to-destination flight) | Done (reviewed, approved) |
 | M11-M13 | Baselines | Dueling DQL, PPO, Greedy | Not started |
 | M14 | Evaluation | Plotting suite (Figs. 4-12, Tables IV-VI) | Not started |

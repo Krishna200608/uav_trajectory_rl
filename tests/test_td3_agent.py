@@ -97,9 +97,15 @@ def test_train_step_and_delayed_update():
 
 
 def test_terminal_transition_zeroing():
+    torch.manual_seed(42)
     state_dim = 26
     action_dim = 3
     agent = TD3Agent(state_dim=state_dim, action_dim=action_dim)
+
+    # Explicitly bias critic targets so Q-value is guaranteed non-zero (> 1.0)
+    with torch.no_grad():
+        agent.critic_target.q1_out.bias.fill_(1.0)
+        agent.critic_target.q2_out.bias.fill_(1.0)
 
     # 1. Terminal transition (done = 1.0)
     reward_val = 7.5
