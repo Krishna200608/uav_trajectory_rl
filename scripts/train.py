@@ -51,7 +51,7 @@ from uav_trajectory_rl.config import (
     R_RAND,
 )
 from uav_trajectory_rl.mdp_environment import UAVTrajectoryEnv
-from uav_trajectory_rl.prior_knowledge_policy import select_action
+from uav_trajectory_rl.prior_knowledge_policy import normalize_action, select_action
 from uav_trajectory_rl.td3_agent import TD3Agent
 from uav_trajectory_rl.td3_networks import ReplayBuffer
 
@@ -209,9 +209,10 @@ def main(
             )
             next_state, reward, done, info = env.step(action)
 
+            normalized_action = normalize_action(action)
             replay_buffer.add(
                 state=state,
-                action=np.array(action, dtype=np.float32),
+                action=np.array(normalized_action, dtype=np.float32),
                 reward=reward,
                 next_state=next_state,
                 done=done,

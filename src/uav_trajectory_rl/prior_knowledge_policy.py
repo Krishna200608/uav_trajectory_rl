@@ -88,6 +88,32 @@ def unnormalize_action(
     return (float(v), float(lam), float(rho))
 
 
+def normalize_action(
+    physical_action: Tuple[float, float, float] | np.ndarray,
+    c: float = ACTION_CLIP_C,
+) -> np.ndarray:
+    """
+    Inverse of unnormalize_action: maps physical (v, lam, rho) back to the
+    actor's normalized [-c, c]^3 output space. Exact algebraic inverse of the
+    affine mapping in unnormalize_action -- must round-trip exactly:
+        v_raw   = v / V_MAX * (2.0 * c) - c
+        lam_raw = lam / math.pi * (2.0 * c) - c
+        rho_raw = rho * (c / math.pi)
+
+    Parameters:
+        physical_action: 3-element tuple or array of physical (v, lam, rho).
+        c: Action clipping bound magnitude (default from config: ACTION_CLIP_C = 1.0).
+
+    Returns:
+        np.ndarray: Normalized action vector of shape (3,) in [-c, c]^3, dtype float64.
+    """
+    v, lam, rho = physical_action[0], physical_action[1], physical_action[2]
+    v_raw = (v / V_MAX) * (2.0 * c) - c
+    lam_raw = (lam / math.pi) * (2.0 * c) - c
+    rho_raw = rho * (c / math.pi)
+    return np.array([v_raw, lam_raw, rho_raw], dtype=np.float64)
+
+
 def select_action(
     state: np.ndarray,
     replay_buffer_size: int,

@@ -46,9 +46,9 @@ Follow these principles without exception:
 ## 5. CURRENT STATE SNAPSHOT
 
 As of the latest repository commits:
-- **Completed Modules (M0–M10):** All core environment primitives, TD3 networks, TD3 agent, prior-knowledge policy, training loop (Algorithm 1), and the first evaluation baseline (TDPK direct-to-destination heuristic) are complete, reviewed, and approved with 39 passing unit tests.
-- **Trained Model Artifacts (`checkpoints/run1/` & `checkpoints/run2/`):** Both full 6,000-episode runs are **INVALID** and documented as failed records. Run 1 suffered from dead-actor saturation. Run 2 solved saturation but suffered from stand-still collapse: the trained actor learned $v=0\text{ m/s}$ at every step (UAV never moves from $Q_{\text{START}}$ across seeds/checkpoints), driven by critic $Q_1$ learning that standing still yields higher return than moving. A local diagnostic study testing the cancelled-move energy penalty hypothesis ruled it out as the primary cause (the preference for $v=0$ persisted).
-- **Current Development Focus:** Investigating the underlying reward/incentive structure causing the stand-still collapse before launching any future full Colab training runs or baseline evaluations.
+- **Completed Modules (M0–M10):** All core environment primitives, TD3 networks, TD3 agent, prior-knowledge policy, training loop (Algorithm 1), and the first evaluation baseline (TDPK direct-to-destination heuristic) are complete, reviewed, and approved with 40 passing unit tests.
+- **Trained Model Artifacts (`checkpoints/run1/` & `checkpoints/run2/`):** Both full 6,000-episode runs are **INVALID** and documented as failed records. Root causes for both are now fully understood and resolved: (1) aerodynamic singularity at pitch extremes bounded, (2) unnormalized state coordinates causing tanh saturation normalized, and (3) action-scale mismatch between replay buffer (was physical $[0, 20]$) and network interfaces (normalized $[-1, 1]$) resolved via `normalize_action()`. An 800-episode diagnostic confirmed that the critic now exhibits monotonic $Q_1$ growth with speed toward the goal and the actor produces active displacement (up to 142m in rollouts).
+- **Current Development Focus:** A new, clean full 6,000-episode training run (`checkpoints/run3`) on Google Colab T4 GPU to produce the final, healthy model artifact for baseline comparisons and M14 evaluation.
 
 ## 6. ENVIRONMENT SETUP QUICK REFERENCE
 

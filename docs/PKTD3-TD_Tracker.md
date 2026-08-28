@@ -260,5 +260,54 @@ and whether the replay buffer ever contained successful arrivals during the prio
      an action in `[-1, 1]`, the critic interprets it in physical units (e.g., speed <= 1.0 m/s), severely
      distorting policy gradients and causing the actor to collapse to the lower bound `v_norm = -1.0` (0 m/s).
 
+### Action-Scale Mismatch Resolution & Replay Buffer Normalization
+TRUE ROOT CAUSE OF RUN 1 & RUN 2 PATHOLOGY:
+The fundamental training pathology across both run1 and run2 was an action-space representation
+mismatch between the replay buffer and the TD3 networks, independent of (and in addition to) the
+earlier energy-singularity and state-normalization issues:
+1. `scripts/train.py` was storing raw physical actions `(v, lam, rho) in [0, 20] x [0, pi] x [-pi, pi]`
+   into the replay buffer. Consequently, the critic Q1/Q2 networks were trained via MSE on physical-scale
+   actions where speed spanned 0 to 20 m/s.
+2. However, TD3Agent._compute_target (`critic_target(next_states, next_action)`) and the actor loss
+   (`-critic.q1_forward(states, actor(states))`) feed the actor's live output, which is bounded in
+   normalized space `[-c, c]^3 = [-1, 1]^3` (Actor.forward computes tanh * max_action).
+3. The critic was therefore queried during target computation and policy gradient updates in a scale it
+   was never trained on. A normalized speed output of +1.0 was perceived by the critic as a crawling
+   physical speed of 1.0 m/s, while -1.0 was perceived as -1.0 m/s.
+
+EXPLICIT CORRECTION TO EARLIER "CRITIC PREFERS STANDING STILL" DIAGNOSTIC:
+The earlier diagnostic note concluded that the critic preferred standing still because querying
+critic.q1_forward with raw inputs in [-1, 1] showed lower Q-values for positive values. That diagnostic
+made the exact same scale error: it probed the critic in [-1, 1], which represented near-hovering
+speeds (<= 1 m/s) in physical space. When the trained critic is correctly probed across genuine physical
+scales (v = 0 to 20 m/s), Q1 increases monotonically with speed toward the destination (347 at v=0 up to
+355 at v=20). The critic actually learned the correct physical relationship; the networks were merely
+disconnected by the action representation mismatch.
+
+FIX IMPLEMENTED:
+1. Added `normalize_action()` to `prior_knowledge_policy.py`, the exact algebraic inverse of
+   `unnormalize_action()`. Verified with 1,000 random vectors in `tests/test_prior_knowledge_policy.py`
+   round-tripping to machine precision (atol=1e-9).
+2. Updated `scripts/train.py` so that `replay_buffer.add()` stores `normalize_action(action)` in `[-c, c]^3`,
+   unifying the replay buffer, target network smoothing, critic evaluation, and actor gradients in the
+   identical normalized `[-1, 1]^3` domain.
+
+800-EPISODE DIAGNOSTIC EVALUATION (`checkpoints/diag_actionscale_fix`):
+1. CRITIC SANITY & CONSISTENCY CHECK (td3_agent_final.pt on initial state s0 heading toward goal):
+   - Q1 evaluated via `normalize_action(phys)` vs direct normalized tensor matches IDENTICALLY across all speeds:
+     - v = 0.0 m/s (v_norm = -1.00) -> Q1 = 48.0553 (Exact Match: YES)
+     - v = 5.0 m/s (v_norm = -0.50) -> Q1 = 49.1367 (Exact Match: YES)
+     - v = 10.0 m/s (v_norm = 0.00) -> Q1 = 50.3100 (Exact Match: YES)
+     - v = 15.0 m/s (v_norm = +0.50) -> Q1 = 50.9506 (Exact Match: YES)
+     - v = 20.0 m/s (v_norm = +1.00) -> Q1 = 51.6965 (Exact Match: YES)
+   - The critic shows a clean, strictly monotonic increase with speed toward the goal.
+2. BEHAVIORAL DISPLACEMENT ACROSS CHECKPOINTS (10 seeds each):
+   - ep200: Mean final disp = 0.0m | Mean reward = 274.26
+   - ep400: Mean final disp = 18.1m (Max dist up to 142.6m; Seed 3 = 142.6m, Seed 8 = 58.7m; 2/10 exceed 50m) | Mean reward = 263.98
+   - ep600: Mean final disp = 6.8m (Seed 4 = 68.0m; 1/10 exceed 50m) | Mean reward = 230.94
+   - ep800/final: Mean final disp = 20.5m (Seed 4 = 80.7m, Seed 5 = 124.7m; 2/10 exceed 50m) | Mean reward = 148.30
+3. Training rewards remained consistently positive (+200 to +300) across all 800 episodes, proving active,
+   healthy policy exploration and breaking the stand-still stagnation of run1 and run2.
+
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*

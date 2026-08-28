@@ -11,6 +11,7 @@ from uav_trajectory_rl.config import (
 )
 from uav_trajectory_rl.prior_knowledge_policy import (
     generate_prior_knowledge_action,
+    normalize_action,
     select_action,
     unnormalize_action,
 )
@@ -87,3 +88,30 @@ def test_select_action_network_branch():
         assert 0.0 <= v <= V_MAX
         assert 0.0 <= lam <= math.pi
         assert -math.pi <= rho <= math.pi
+
+
+def test_action_normalization_round_trip():
+    """
+    Confirm exact mathematical round-trip between normalize_action and unnormalize_action.
+    1. raw -> unnormalize -> normalize -> raw
+    2. phys -> normalize -> unnormalize -> phys
+    """
+    rng = np.random.default_rng(789)
+    c = ACTION_CLIP_C
+
+    # 1. Random raw actions in [-c, c]^3
+    for _ in range(500):
+        raw = rng.uniform(-c, c, size=3)
+        phys = unnormalize_action(raw, c=c)
+        recovered_raw = normalize_action(phys, c=c)
+        assert np.allclose(recovered_raw, raw, atol=1e-9)
+
+    # 2. Random physical actions in valid physical bounds
+    for _ in range(500):
+        v = rng.uniform(0.0, V_MAX)
+        lam = rng.uniform(0.0, math.pi)
+        rho = rng.uniform(-math.pi, math.pi)
+        phys = (v, lam, rho)
+        norm = normalize_action(phys, c=c)
+        recovered_phys = unnormalize_action(norm, c=c)
+        assert np.allclose(recovered_phys, phys, atol=1e-9)
