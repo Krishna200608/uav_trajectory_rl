@@ -26,7 +26,18 @@ Execution Flow:
 
 import argparse
 import os
+import sys
+from pathlib import Path
 from typing import List, Optional
+
+# Ensure 'src' is resolvable unconditionally regardless of invocation mode
+_repo_root = Path(__file__).resolve().parent.parent
+_src_dir = _repo_root / "src"
+if str(_src_dir) not in sys.path:
+    sys.path.insert(0, str(_src_dir))
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
+
 import numpy as np
 import torch
 
