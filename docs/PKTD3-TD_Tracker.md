@@ -230,5 +230,35 @@ and move, 9 of 10 seeds still collapsed to 0 displacement, and the critic still 
 for standing still than for moving forward. The root incentive problem lies deeper in the reward structure
 (e.g., terminal penalty r_n,3 vs per-step throughput and energy trade-offs, or the proximity reward r_n,4).
 
+### Reward-baseline diagnostic (hover vs TDPK vs prior-knowledge policy)
+Investigated whether the reward function intrinsically favors hovering over genuine movement,
+and whether the replay buffer ever contained successful arrivals during the prior-knowledge (PK) phase.
+
+1. THREE-WAY POLICY COMPARISON (20 Seeds, K=10, 200 steps):
+   - Always Hover: Mean reward = 216.07 +/- 79.55 | Arrival rate = 0.0% (0/20)
+   - TDPK (Direct Flight): Mean reward = 345.26 +/- 39.39 | Arrival rate = 100.0% (20/20) | Avg steps to arrival = 89.1
+   - Prior-Knowledge Policy: Mean reward = 653.46 +/- 261.97 | Arrival rate = 50.0% (10/20)
+   TDPK beats Always Hover by +129.19 points on average (beating hover in 17 of 20 seeds).
+   Finding: The reward function itself does NOT intrinsically prefer hovering; a policy that actively flies
+   to the destination earns substantial positive throughput and avoids non-arrival penalties.
+
+2. PK-PHASE ARRIVAL RATE AUDIT (150 Episodes, K=10):
+   - Using the exact `generate_prior_knowledge_action` heuristic from eq. (30):
+     - Total arrivals: 60 / 150 (40.00% arrival rate).
+     - Steps on arrival: Min = 85, Max = 192, Mean = 121.1 steps.
+     - Distance to goal at termination: Mean = 27.01m, Min = 0.83m.
+   Finding: The replay buffer during the R_rand = 20,000 exploration phase (100 episodes) received ~40
+   episodes of successful arrivals, disproving the hypothesis that the critic lacked grounding arrival data.
+
+3. ROOT CAUSE & INTERPRETATION:
+   - Neither the reward balance (hover vs TDPK) nor the lack of arrival examples during exploration explains
+     the stand-still collapse.
+   - Decisive architectural insight: An action-space representation mismatch exists in the TD3 training loop.
+     In scripts/train.py, un-normalized physical actions `(v, lam, rho) in [0, 20] x [0, pi] x [-pi, pi]`
+     were stored into `replay_buffer`, so the critic was trained on physical actions. However, the actor target
+     and actor update loss evaluate the critic using normalized actions `[-1, 1]^3`. When the actor outputs
+     an action in `[-1, 1]`, the critic interprets it in physical units (e.g., speed <= 1.0 m/s), severely
+     distorting policy gradients and causing the actor to collapse to the lower bound `v_norm = -1.0` (0 m/s).
+
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
