@@ -309,5 +309,44 @@ FIX IMPLEMENTED:
 3. Training rewards remained consistently positive (+200 to +300) across all 800 episodes, proving active,
    healthy policy exploration and breaking the stand-still stagnation of run1 and run2.
 
+### Extended 2,500-Episode Action-Scale Diagnostic Trend (`checkpoints/diag_actionscale_2500`)
+Extended the diagnostic training run to 2,500 episodes (saving every 250 episodes) with the normalized
+action fix to evaluate whether the moving-seed fraction exhibits an upward learning trend across training.
+
+EVALUATION PROTOCOL:
+- 10 evaluation seeds (0-9) tested per checkpoint against a fresh environment.
+- Metrics recorded: Mean Max Displacement from Q_START, Fraction of Seeds Exceeding 50m, Mean Reward.
+
+SUMMARY TREND TABLE ACROSS CHECKPOINTS:
+| Checkpoint | Mean Max Disp (m) | Frac Exceeding 50m | Mean Reward | Seeds Exceeding 50m (Max Distance in m) |
+|---|:---:|:---:|:---:|---|
+| **ep250**  | 0.0m  | 0.0%  | +247.82 | None |
+| **ep500**  | 28.4m | 30.0% | +255.92 | Seed 3 (109m), Seed 4 (56m), Seed 8 (109m) |
+| **ep750**  | 6.8m  | 10.0% | +214.09 | Seed 4 (66m) |
+| **ep1000** | 6.2m  | 10.0% | +202.52 | Seed 8 (61m) |
+| **ep1250** | 64.2m | 30.0% | +222.97 | Seed 3 (104m), Seed 8 (283m), Seed 9 (240m) |
+| **ep1500** | 0.3m  | 0.0%  | +164.25 | None |
+| **ep1750** | 61.1m | 20.0% | +193.28 | Seed 0 (452m), Seed 1 (159m) |
+| **ep2000** | 8.5m  | 10.0% | +114.45 | Seed 8 (85m) |
+| **ep2250** | 27.1m | 20.0% | +74.05  | Seed 0 (60m), Seed 9 (211m) |
+| **ep2500 / Final** | 0.0m | 0.0% | +91.54 | None (all seeds collapsed to 0m) |
+
+ANALYSIS & INTERPRETATION:
+1. Trend Read: FLAT / NOISY, NOT TRENDING UPWARD.
+   - The fraction of seeds moving meaningfully fluctuates between 0% and 30% without sustained improvement:
+     `0% -> 30% -> 10% -> 10% -> 30% -> 0% -> 20% -> 10% -> 20% -> 0%`.
+   - Mean reward across evaluation seeds steadily degrades from ~+255 down to ~+91.
+2. Root Cause of Continued Inaction in 70-100% of Seeds:
+   - Direct inspection of the actor output vectors reveals that the actor is NOT commanding v=0 (as in run2).
+     Instead, the actor commands high speeds ($v = 15 \dots 20\text{ m/s}$), but commands directions pointing
+     downward into the ground ($\lambda \approx 160^\circ \dots 180^\circ$) or backward into the boundaries
+     ($\rho \approx -120^\circ \dots 180^\circ$).
+   - Because $Q_{\text{START}} = (0, 0, 50)$ is located at the exact lower-left bottom corner of the 3D domain
+     $[0, 600] \times [0, 600] \times [50, 100]$, only $1/8$ (12.5%) of spherical angles point into the valid flight
+     volume ($\lambda \in [0, \pi/2], \rho \in [0, \pi/2]$). The remaining $7/8$ (87.5%) of directions immediately
+     violate spatial boundaries on step 1, causing 100% boundary cancellations.
+   - Charging energy on these cancelled moves drains reward while yielding 0 progress, and the actor gets trapped
+     in boundary cancellation attractors.
+
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
