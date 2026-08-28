@@ -102,6 +102,7 @@ class UAVTrajectoryEnv:
         c_h: float = C_H,
         c_near: float = C_NEAR,
         c_lack: float = C_LACK,
+        charge_energy_on_cancelled_move: bool = True,
     ) -> None:
         """
         Initialize the UAV trajectory MDP environment.
@@ -120,9 +121,13 @@ class UAVTrajectoryEnv:
             z_min, z_max: Altitude bounds (m).
             arrival_threshold: Distance tolerance for destination arrival (m).
             c_th..c_lack: Reward weight coefficients.
+            charge_energy_on_cancelled_move: If True (default), energy is charged based on
+                commanded speed even if spatial boundary violation cancelled the movement.
+                If False, v_n=0.0 is used for energy calculation when movement is cancelled.
         """
         self.k: int = k
         self.rng: np.random.Generator = rng if rng is not None else np.random.default_rng()
+        self.charge_energy_on_cancelled_move: bool = charge_energy_on_cancelled_move
 
         # Environment geometry
         self.q_start: np.ndarray = np.array(q_start, dtype=np.float64)
@@ -242,7 +247,8 @@ class UAVTrajectoryEnv:
         )
 
         # If ANY spatial constraint is violated, cancel action: position stays
-        if xy_violated or height_violated:
+        action_cancelled = xy_violated or height_violated
+        if action_cancelled:
             self.uav_pos = q_prev.copy()
         else:
             self.uav_pos = candidate_pos
@@ -272,7 +278,8 @@ class UAVTrajectoryEnv:
 
         # Individual reward terms
         r1 = self._reward_throughput(user_positions)
-        r2 = self._reward_energy(actual_v, lam_n)
+        v_energy = actual_v if (self.charge_energy_on_cancelled_move or not action_cancelled) else 0.0
+        r2 = self._reward_energy(v_energy, lam_n)
         r3 = self._reward_terminal(done, arrived, dist_to_end)
         r4 = self._reward_proximity(dist_to_end)
         r5 = self._reward_accel_penalty(accel_violated)

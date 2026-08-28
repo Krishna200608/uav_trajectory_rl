@@ -73,6 +73,7 @@ def main(
     use_progress_bar: bool = True,
     resume: bool = False,
     resume_from: Optional[str] = None,
+    charge_energy_on_cancelled_move: bool = True,
 ) -> List[float]:
     """
     Execute the PKTD3-TD training procedure (Algorithm 1).
@@ -89,6 +90,7 @@ def main(
         use_progress_bar: Whether to display interactive tqdm progress bar with ETA.
         resume: Whether to automatically resume from the latest checkpoint in checkpoint_dir.
         resume_from: Explicit path to a checkpoint file (.pt) to resume training from.
+        charge_energy_on_cancelled_move: Whether to charge energy on cancelled boundary moves.
 
     Returns:
         List[float]: Cumulative scalar reward achieved in each episode.
@@ -96,7 +98,11 @@ def main(
     rng = np.random.default_rng(seed)
     torch.manual_seed(seed)
 
-    env = UAVTrajectoryEnv(k=k_users, rng=rng)
+    env = UAVTrajectoryEnv(
+        k=k_users,
+        rng=rng,
+        charge_energy_on_cancelled_move=charge_energy_on_cancelled_move,
+    )
     state_dim = env.state_dim
     agent = TD3Agent(state_dim=state_dim)
     replay_buffer = ReplayBuffer(state_dim=state_dim, action_dim=3, capacity=REPLAY_SIZE)
@@ -305,6 +311,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no-progress", action="store_true", help="Disable visual tqdm progress bar")
     parser.add_argument("--resume", action="store_true", help="Resume training from latest checkpoint in checkpoint-dir")
     parser.add_argument("--resume-from", type=str, default=None, help="Explicit checkpoint file (.pt) to resume from")
+    parser.add_argument(
+        "--no-charge-on-cancel",
+        action="store_true",
+        help="Zero out speed in energy calculation when a move is cancelled by spatial boundaries (diagnostic hypothesis test)",
+    )
     return parser.parse_args()
 
 
@@ -322,4 +333,5 @@ if __name__ == "__main__":
         use_progress_bar=not args.no_progress,
         resume=args.resume,
         resume_from=args.resume_from,
+        charge_energy_on_cancelled_move=not args.no_charge_on_cancel,
     )

@@ -92,7 +92,7 @@ uav_trajectory_rl/
 |-- pyproject.toml
 |-- checkpoints/
 |   |-- run1/                          # INVALID -- actor saturation, see docs/PKTD3-TD_Tracker.md
-|   \-- run2/                          # VALID -- full 6,000-episode trained model on Colab T4 GPU
+|   \-- run2/                          # INVALID -- stand-still collapse (v=0), see docs/PKTD3-TD_Tracker.md
 |-- docs/
 |   \-- PKTD3-TD_Tracker.md             # Ground-truth parameters, assumptions, and review notes
 |-- notebooks/
@@ -100,6 +100,7 @@ uav_trajectory_rl/
 |   \-- check_actor_saturation_colab.ipynb # Live diagnostic monitor to check actor saturation on Drive
 |-- scripts/
 |   |-- .gitkeep                        # Execution and training scripts
+|   |-- diagnose_displacement.py        # Diagnostic script to test rollout displacement & critic gradients
 |   \-- train.py                        # Full PKTD3-TD training loop (Algorithm 1)
 |-- src/
 |   \-- uav_trajectory_rl/
@@ -132,7 +133,7 @@ uav_trajectory_rl/
 
 ## Implementation status
 
-> **Training Status (Run 2 Complete & Validated):** An initial full training run (`checkpoints/run1/`) completed 6,000 episodes but was invalidated due to actor saturation from unnormalized state inputs. With state normalization and gradient clipping implemented, **Run 2 (`checkpoints/run2/`) completed the full 6,000-episode training on Google Colab T4 GPU**. The actor demonstrated active, non-saturated learning across all 6,000 episodes (`mean_abs_diff > 0.08` across checkpoints, reward improving by >210 points over run1). `checkpoints/run2/` is the **official, validated policy artifact** for all baseline comparisons and evaluation plots. See [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md)'s Review notes for full details.
+> **Note on Run 1 & Run 2 Invalidation:** An initial full training run (`checkpoints/run1/`) suffered from actor saturation. The second run (`checkpoints/run2/`) completed 6,000 episodes but is **ALSO INVALID**: the trained actor collapsed to a stationary $v=0$ policy (the UAV never moves from $Q_{\text{START}}$ across multiple seeds and checkpoints; critic inspection confirmed $Q_1$ is higher for $v=0$ than for moving). A diagnostic study testing whether charging energy on cancelled boundary moves drove this collapse showed it is ruled out (stationary preference persists). Both runs are retained for documentary integrity. See [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md)'s Review notes for full details.
 
 ### Module roadmap
 
@@ -145,7 +146,7 @@ uav_trajectory_rl/
 - [x] M6 -- Prior-knowledge exploration policy (eq. 30-31)
 - [x] M7 -- TD3 networks and replay buffer
 - [x] M8 -- TD3 update rules (eq. 32-38)
-- [x] M9 -- Training loop (Algorithm 1; validated via run2)
+- [x] M9 -- Training loop (Algorithm 1; run1 & run2 invalidated, see tracker notes)
 - [x] M10 -- Baseline: TDPK
 - [ ] M11 -- Baseline: Dueling DQL
 - [ ] M12 -- Baseline: PPO
@@ -165,7 +166,7 @@ uav_trajectory_rl/
 | M6 | `prior_knowledge_policy.py` | PK guidance and action dispatch (eq. 30-31) | Done (reviewed, approved) |
 | M7 | `td3_networks.py` | Actor-critic networks and replay buffer | Done (reviewed, approved) |
 | M8 | `td3_agent.py` | Clipped double-Q and target smoothing (eq. 32-38) | Done (reviewed, approved) |
-| M9 | `scripts/train.py` | Training loop (Algorithm 1) | Done (reviewed, approved; validated via run2) |
+| M9 | `scripts/train.py` | Training loop (Algorithm 1) | Done (reviewed, approved; run1 & run2 invalidated, see tracker notes) |
 | M10 | `baselines/tdpk.py` | Baseline: TDPK (direct-to-destination flight) | Done (reviewed, approved) |
 | M11-M13 | Baselines | Dueling DQL, PPO, Greedy | Not started |
 | M14 | Evaluation | Plotting suite (Figs. 4-12, Tables IV-VI) | Not started |

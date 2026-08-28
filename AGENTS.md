@@ -46,9 +46,9 @@ Follow these principles without exception:
 ## 5. CURRENT STATE SNAPSHOT
 
 As of the latest repository commits:
-- **Completed Modules (M0–M10):** All core environment primitives, TD3 networks, TD3 agent, prior-knowledge policy, training loop (Algorithm 1), and the first evaluation baseline (TDPK direct-to-destination heuristic) are complete, reviewed, and approved with 38 passing unit tests.
-- **Trained Model Artifacts (`checkpoints/run2/`):** A full 6,000-episode training run has completed on Google Colab T4 GPU with state normalization and gradient clipping active. All 12 intermediate checkpoints (`td3_agent_ep500.pt` through `ep6000.pt`), the final model weights (`td3_agent_final.pt`), and the complete 6,000-episode reward history (`episode_rewards.npy`) are saved and committed under `checkpoints/run2/`. The actor continuously evolved throughout the run (`mean_abs_diff > 0.08` across checkpoints, reward converging to -65.66 vs flat -276 in failed run1). `checkpoints/run2/` is the **official, validated policy artifact** for all baseline comparisons and evaluation plots.
-- **Current Development Focus:** Implementing the remaining three baselines (M11: Dueling DQL, M12: PPO, M13: Greedy) and the evaluation & plotting suite (M14) to reproduce paper Figures 4–12 and Tables IV–VI.
+- **Completed Modules (M0–M10):** All core environment primitives, TD3 networks, TD3 agent, prior-knowledge policy, training loop (Algorithm 1), and the first evaluation baseline (TDPK direct-to-destination heuristic) are complete, reviewed, and approved with 39 passing unit tests.
+- **Trained Model Artifacts (`checkpoints/run1/` & `checkpoints/run2/`):** Both full 6,000-episode runs are **INVALID** and documented as failed records. Run 1 suffered from dead-actor saturation. Run 2 solved saturation but suffered from stand-still collapse: the trained actor learned $v=0\text{ m/s}$ at every step (UAV never moves from $Q_{\text{START}}$ across seeds/checkpoints), driven by critic $Q_1$ learning that standing still yields higher return than moving. A local diagnostic study testing the cancelled-move energy penalty hypothesis ruled it out as the primary cause (the preference for $v=0$ persisted).
+- **Current Development Focus:** Investigating the underlying reward/incentive structure causing the stand-still collapse before launching any future full Colab training runs or baseline evaluations.
 
 ## 6. ENVIRONMENT SETUP QUICK REFERENCE
 

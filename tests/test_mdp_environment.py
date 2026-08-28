@@ -78,3 +78,33 @@ def test_state_normalization_bounds():
             assert np.all(next_state >= -1.5) and np.all(next_state <= 1.5)
             if done:
                 break
+
+
+def test_charge_energy_on_cancelled_move_toggle():
+    """
+    Verify that when an action violates spatial constraints and gets cancelled:
+    - With charge_energy_on_cancelled_move=True: energy r2 is charged based on commanded v.
+    - With charge_energy_on_cancelled_move=False: energy r2 uses v=0.0 (hovering energy only).
+    """
+    # Action pushing horizontally west past x=0 boundary: lam = pi/2, rho = pi, v = 20
+    action_into_wall = (V_MAX, math.pi / 2.0, math.pi)
+
+    env_charge = UAVTrajectoryEnv(k=10, rng=np.random.default_rng(0), charge_energy_on_cancelled_move=True)
+    env_charge.reset()
+    _, _, _, info_charge = env_charge.step(action_into_wall)
+
+    env_no_charge = UAVTrajectoryEnv(k=10, rng=np.random.default_rng(0), charge_energy_on_cancelled_move=False)
+    env_no_charge.reset()
+    _, _, _, info_no_charge = env_no_charge.step(action_into_wall)
+
+    # Both environments cancel movement and remain at Q_START
+    assert np.allclose(env_charge.uav_pos, env_charge.q_start)
+    assert np.allclose(env_no_charge.uav_pos, env_no_charge.q_start)
+
+    # env_no_charge charged energy based on v=0.0 (hovering)
+    # env_charge charged energy based on actual_v (acceleration-capped commanded speed)
+    expected_no_charge_r2 = env_no_charge._reward_energy(0.0, math.pi / 2.0)
+    expected_charge_r2 = env_charge._reward_energy(env_charge.uav_speed, math.pi / 2.0)
+    assert math.isclose(info_no_charge["r2_energy"], expected_no_charge_r2)
+    assert math.isclose(info_charge["r2_energy"], expected_charge_r2)
+    assert not math.isclose(info_no_charge["r2_energy"], info_charge["r2_energy"])

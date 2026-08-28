@@ -181,20 +181,54 @@ checkpoints/run1 IS INVALID and must not be used for baseline comparisons
 or M14 evaluation plots -- retain it in the repo for the record (do not
 delete), but treat it as a documented failed run, not a completed result.
 
-### Run 2 (checkpoints/run2) — VALID full 6,000-episode training run completed & verified
-Full 6,000-episode training was executed on Google Colab (T4 GPU) using the normalized
-state vector and gradient clipping. All 12 periodic checkpoints (ep500 through ep6000),
-final agent weights, and full reward trajectories were committed and pulled to `checkpoints/run2/`.
-Key empirical findings:
-1. Actor actively evolved across all 6,000 episodes without freezing (mean abs diff
-   between consecutive checkpoints: 0.78 at ep1000 -> 0.62 at ep1500 -> 0.23 at ep2000 ->
-   0.31 at ep2500 -> 0.13 at ep3000 -> 0.16 at ep6000).
-2. Final 100 episodes converged to an average reward of -65.66, an improvement of over
-   +210 reward points compared to the flat -276.10 plateau of run1.
-3. Training loop was enhanced with an interactive visual progress bar (tqdm), live ETA/speed
-   metrics, and seamless checkpoint resumption (`--resume` / `resume=True`), verified via unit tests.
-Status: `checkpoints/run2/` is the official, validated training run for all baseline comparisons (M10–M13)
-and evaluation suite figures (M14).
+### Run 2 (checkpoints/run2) — INVALID: Stand-still policy collapse (v=0 at every step)
+checkpoints/run2 IS INVALID: the actor collapsed to a stationary v=0 policy; confirmed via direct
+critic inspection, not just reward trend.
+Detailed findings:
+1. Direct rollout verification across 5 different seeds and checkpoints spanning ep500 through ep6000
+   revealed that the trained actor outputs normalized action a_norm = [-1.0, 1.0, -1.0], which
+   maps directly to commanded speed v = 0.0 m/s at every single step. The UAV never moves a single
+   meter from Q_START = (0, 0, 50).
+2. Direct critic inspection confirms why: Q1(state, action) evaluated on the initial state s_0
+   decreases monotonically from ~367 at v = 0 m/s down to ~347 at v = 20 m/s across all flight
+   directions tested (holding directions fixed). The critic learned that "standing still" is optimal,
+   and the actor faithfully follows that gradient.
+3. Retain checkpoints/run2 in the repository as a documented failed run (do not delete), but do
+   NOT use for baseline comparisons or M14 evaluation.
+
+### Diagnostic Study: Cancelled-move energy charging hypothesis
+HYPOTHESIS:
+In mdp_environment.py, energy (r_n,2) was originally charged on commanded speed even when the UAV's
+position update was cancelled due to spatial boundary violations (xy area or z bounds) -- an undocumented
+M5 engineering design decision. Because the UAV starts at the corner Q_START = (0, 0, 50), early random/
+exploratory actions frequently violated boundaries and were cancelled, expending full energy for 0 progress
+while standing still incurred no boundary penalties. This was hypothesized to create an incentive for inaction.
+
+METHOD:
+Added a configurable toggle `charge_energy_on_cancelled_move: bool = True` to UAVTrajectoryEnv and
+`--no-charge-on-cancel` flag to scripts/train.py. Two identical 800-episode runs (seed 0) were executed:
+- Run A (Baseline, charge ON): default behavior.
+- Run B (Hypothesis, charge OFF): when an action is cancelled, v_n = 0.0 is used for energy calculation.
+
+RESULTS (10-seed rollout evaluation at ep800):
+- Run A (Charge ON):
+  - Final/Max displacement: 0.0m / 0.0m across ALL 10 seeds (0/10 exceeded 50m).
+  - Actor output: a_norm = [1.0, 0.9999, 0.9896] -> commanded v = 20 m/s directly into the floor/wall
+    (lam = pi, rho = pi), getting cancelled at 100% of steps.
+  - Critic Q1(s0, action): slightly higher at v = 20 m/s (61.05) vs v = 0 m/s (60.58).
+- Run B (Charge OFF):
+  - Final/Max displacement: 0.0m / 0.0m in 9 out of 10 seeds (Seeds 0-8). Seed 9 escaped and achieved
+    227.9m final displacement (231.6m max) with reward +392.84.
+  - Actor output: a_norm = [-0.9998, 0.9676, 0.9985] -> commanded v = 0.0 m/s (stationary).
+  - Critic Q1(s0, action): Q1 at v = 0 m/s (71.67) remains HIGHER than v = 20 m/s (71.27) in forward
+    directions, and higher into boundaries (74.59 vs 73.35). The "lower speed = higher Q" preference persists.
+
+CONCLUSION & ASSESSMENT:
+The hypothesis that charging energy on cancelled moves was the primary driver of stand-still collapse is
+RULED OUT (or at best only weakly partial). While removing the penalty allowed 1 of 10 seeds to escape
+and move, 9 of 10 seeds still collapsed to 0 displacement, and the critic still exhibits a higher Q-value
+for standing still than for moving forward. The root incentive problem lies deeper in the reward structure
+(e.g., terminal penalty r_n,3 vs per-step throughput and energy trade-offs, or the proximity reward r_n,4).
 
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
