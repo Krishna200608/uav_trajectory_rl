@@ -392,5 +392,40 @@ To determine whether exploration noise was driving navigation and whether the cr
    - The earlier "Pathology Resolution Confirmed" / "ep4000 champion checkpoint" framing is explicitly retracted.
    - Run 3 is an improvement in training stability, but the deterministic navigation capability is NOT consolidated. Further investigation is required before proceeding to M11–M14.
 
+### Reward Component Balance: TDPK vs Hover (`scripts/diagnose_reward_balance.py`)
+Investigated whether the throughput-vs-energy reward balance for a full journey provides a large, robust learning signal over hovering, or if our assumed (non-paper-specified) parameters (`FC_HZ`, `N0_DBM_HZ`, `OMEGA`) create a narrow, fragile margin.
+
+Ran 30 seeds ($k=10$) for both TDPK (direct-to-destination flight, arriving in 100% of seeds) and Always-Hover ($v=0$ for the full 200 slots), decomposing cumulative episode reward into its exact 6 constituent terms ($r_1$ through $r_6$).
+
+#### Component Breakdown Table:
+| Metric / Component | TDPK (Arrived: 30/30) | Always Hover (30/30) | Delta (TDPK − Hover) | Operational Role |
+| :--- | :---: | :---: | :---: | :--- |
+| **Mean Steps Taken** | **89.2** / 200 | **200.0** / 200 | **−110.8 steps** | Faster arrival truncates episode |
+| **r1 (Throughput)** | **+509.95** | **+641.07** | **−131.12** | **Hover earns MORE total throughput over 200 slots** |
+| **r2 (Energy Cost)** | **−54.24** | **−160.66** | **+106.42** | TDPK spends less total energy by terminating earlier |
+| **r3 (Terminal Penalty/Bonus)**| **−20.00** | **−62.43** | **+42.43** | TDPK avoids end-of-episode distance penalty $d_{\text{re}}$ |
+| **r4 (Proximity / Lack)** | **−65.79** | **−200.00** | **+134.21** | TDPK earns $d_{\text{near}}$ progress and avoids 111 steps of $t_{\text{lack}}$ |
+| **r5 (Acceleration Penalty)** | **−24.08** | **+0.00** | **−24.08** | Random speed changes incur acceleration penalty |
+| **r6 (Height Penalty)** | **+0.00** | **+0.00** | **+0.00** | Zero altitude boundary violations |
+| **Total Cumulative Reward** | **+345.84** | **+217.98** | **+127.85** | **Net Advantage: 1.59x (+58.7%)** |
+
+#### Fraction of Throughput Eaten by Energy Cost:
+- **TDPK Full Journey:** Energy cost ($|r_2| = 54.24$) consumes **10.6%** of gross throughput reward ($r_1 = 509.95$). Total negative penalties ($|r_2 \dots r_6| = 164.11$) consume **32.2%** of throughput.
+- **Always Hover:** Energy cost ($|r_2| = 160.66$) consumes **25.1%** of gross throughput reward ($r_1 = 641.07$). Total negative penalties ($|r_2 \dots r_6| = 423.09$) consume **66.0%** of throughput.
+
+#### Crucial Findings on the Reward-Balance Hypothesis:
+1. **The Net Advantage is NARROW (+58.7%, 1.59x), NOT Large/Robust (not 3–5x):**
+   - Completing a full journey yields only a $+58.7\%$ premium over simply hovering stationary at $Q_{\text{START}}$.
+   - This narrow margin confirms the hypothesis: under our assumed wireless channel parameters (`FC_HZ`, `N0_DBM_HZ`, `OMEGA`), hovering captures a remarkably strong, risk-free baseline return ($+217.98$).
+2. **Surprising Discovery: Hover Earns MORE Total Throughput Than Completing the Mission:**
+   - Always-Hover earns **$+641.07$** in throughput vs TDPK's **$+509.95$** ($\Delta r_1 = -131.12$).
+   - Because TDPK reaches the destination at step 89.2, it is immediately truncated from accumulating transmission throughput for the remaining 110.8 slots. Hovering sits in place for all 200 slots collecting continuous data from passing users.
+3. **Where Does TDPK's Entire Advantage Actually Come From?**
+   - TDPK's advantage does **NOT** come from collecting more communication throughput.
+   - It comes entirely from **time truncation**: because the episode ends at step 89, the UAV stops paying the per-slot hover energy ($+106.42$), stops paying the per-slot $t_{\text{lack}}$ penalty ($+134.21$), and avoids the end-of-episode distance penalty ($+42.43$).
+4. **Implications for Reinforcement Learning (Credit Assignment Failure):**
+   - For an exploring policy during training, moving is dangerous: $87.5\%$ of 3D directions from $Q_{\text{START}}$ hit boundaries. If an agent flies 100m–200m into the field but fails to reach $Q_{\text{END}}$ before $N=200$, it pays moving energy, incurs acceleration penalties, and suffers the full $-c_{\text{nr}} d_{\text{re}}$ distance penalty, resulting in a reward **substantially WORSE than hovering**.
+   - Hovering acts as an immediate local maximum with zero risk and guaranteed $+217.98$ reward, creating a severe credit assignment barrier against discovering the complete 89-step trajectory without persistent heuristic guidance.
+
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
