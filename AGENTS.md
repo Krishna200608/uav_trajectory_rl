@@ -47,8 +47,10 @@ Follow these principles without exception:
 
 As of the latest repository commits:
 - **Completed Modules (M0–M10):** All core environment primitives, TD3 networks, TD3 agent, prior-knowledge policy, training loop (Algorithm 1), and the first evaluation baseline (TDPK direct-to-destination heuristic) are complete, reviewed, and approved with 40 passing unit tests.
-- **Trained Model Artifacts (`checkpoints/run1/` & `checkpoints/run2/`):** Both full 6,000-episode runs are **INVALID** and documented as failed records. Root causes for both are now fully understood and resolved: (1) aerodynamic singularity at pitch extremes bounded, (2) unnormalized state coordinates causing tanh saturation normalized, and (3) action-scale mismatch between replay buffer (was physical $[0, 20]$) and network interfaces (normalized $[-1, 1]$) resolved via `normalize_action()`. An 800-episode diagnostic confirmed that the critic now exhibits monotonic $Q_1$ growth with speed toward the goal and the actor produces active displacement (up to 142m in rollouts).
-- **Current Development Focus:** A new, clean full 6,000-episode training run (`checkpoints/run3`) on Google Colab T4 GPU to produce the final, healthy model artifact for baseline comparisons and M14 evaluation.
+- **Trained Model Artifacts (`checkpoints/run1/`, `run2/`, `run3/`):**
+  - **Run 1 & Run 2:** Documented as failed records (Run 1: dead-actor saturation; Run 2: stand-still $v=0$ collapse).
+  - **Run 3 (`checkpoints/run3/`):** Completed all 6,000 episodes on Colab T4 GPU with active gradients and displacement up to 222m. However, an independent 30-seed noise-sensitivity diagnostic (`scripts/diagnose_noise_sensitivity.py`) demonstrated **0.0% arrival rate** and **0.0m median displacement** under deterministic and noised evaluation ($\sigma_{\text{eval}} \in [0.0, 0.5]$) on both `ep4000` and `ep6000`. Run 3 is **NOT yet validated** for downstream baseline comparisons (M11–M14).
+- **Current Development Focus:** Investigating why the policy does not complete goal navigation despite high training rewards before proceeding to downstream baselines.
 
 ## 6. ENVIRONMENT SETUP QUICK REFERENCE
 

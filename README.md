@@ -92,7 +92,8 @@ uav_trajectory_rl/
 |-- pyproject.toml
 |-- checkpoints/
 |   |-- run1/                          # INVALID -- actor saturation, see docs/PKTD3-TD_Tracker.md
-|   \-- run2/                          # INVALID -- stand-still collapse (v=0), see docs/PKTD3-TD_Tracker.md
+|   |-- run2/                          # INVALID -- stand-still collapse (v=0), see docs/PKTD3-TD_Tracker.md
+|   \-- run3/                          # Run 3: improved, but unvalidated (0% arrival rate on noise sweep)
 |-- docs/
 |   \-- PKTD3-TD_Tracker.md             # Ground-truth parameters, assumptions, and review notes
 |-- notebooks/
@@ -101,6 +102,7 @@ uav_trajectory_rl/
 |-- scripts/
 |   |-- .gitkeep                        # Execution and training scripts
 |   |-- diagnose_displacement.py        # Diagnostic script to test rollout displacement & critic gradients
+|   |-- diagnose_noise_sensitivity.py   # Diagnostic sweep of evaluation noise levels on Run 3 checkpoints
 |   \-- train.py                        # Full PKTD3-TD training loop (Algorithm 1)
 |-- src/
 |   \-- uav_trajectory_rl/
@@ -133,7 +135,7 @@ uav_trajectory_rl/
 
 ## Implementation status
 
-> **Note on Run 1 & Run 2 Invalidation:** An initial full training run (`checkpoints/run1/`) suffered from actor saturation. The second run (`checkpoints/run2/`) completed 6,000 episodes but is **ALSO INVALID**: the trained actor collapsed to a stationary $v=0$ policy (the UAV never moves from $Q_{\text{START}}$ across multiple seeds and checkpoints; critic inspection confirmed $Q_1$ is higher for $v=0$ than for moving). A diagnostic study testing whether charging energy on cancelled boundary moves drove this collapse showed it is ruled out (stationary preference persists). Both runs are retained for documentary integrity. See [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md)'s Review notes for full details.
+> **Note on Training Runs (Run 1, Run 2, Run 3):** An initial full training run (`checkpoints/run1/`) suffered from actor saturation. The second run (`checkpoints/run2/`) collapsed to a stationary $v=0$ policy. Run 3 (`checkpoints/run3/`) completed all 6,000 episodes on Colab T4 and avoided both pathologies (active gradients, displacement up to 222m). However, a 30-seed noise-sensitivity sweep (`scripts/diagnose_noise_sensitivity.py`) revealed **0.0% arrival rate** and **0.0m median displacement** under deterministic and noised evaluation ($\sigma=0.0 \dots 0.5$). Run 3 is therefore **NOT yet validated** for downstream baseline comparisons (M11–M14). See [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md)'s Review notes for full details.
 
 ### Module roadmap
 
@@ -146,7 +148,7 @@ uav_trajectory_rl/
 - [x] M6 -- Prior-knowledge exploration policy (eq. 30-31)
 - [x] M7 -- TD3 networks and replay buffer
 - [x] M8 -- TD3 update rules (eq. 32-38)
-- [x] M9 -- Training loop (Algorithm 1; run1 & run2 invalidated, see tracker notes)
+- [x] M9 -- Training loop (Algorithm 1; Run 3 unvalidated, see tracker notes)
 - [x] M10 -- Baseline: TDPK
 - [ ] M11 -- Baseline: Dueling DQL
 - [ ] M12 -- Baseline: PPO

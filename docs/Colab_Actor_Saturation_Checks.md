@@ -580,20 +580,37 @@ Live Rewards: 6000 episodes logged.
 
 ---
 
-## 7. Checkpoint Selection & Evaluation Guide for Downstream Modules (M11–M14)
+## 7. Diagnostic Assessment: Policy Not Yet Validated for Downstream Use
 
-### Pathology Resolution Confirmed
-Run 3 has successfully completed all 6,000 episodes and conclusively eliminated both fatal pathologies of earlier runs:
-1. **Dead-Actor Saturation (Run 1):** Eliminated. In Run 1, 100% of outputs froze at $\pm 1.0$ by episode 1,500 with zero diff (`diff < 1e-4`). In Run 3, the mean absolute difference remained high across all 6,000 episodes ($0.32 \dots 0.62$), and saturation stayed in a healthy, dynamic range (17% to 58%).
-2. **Stand-Still Collapse (Run 2):** Eliminated. In Run 2, the actor learned $v=0\text{ m/s}$ everywhere, yielding $0.0\text{ m}$ displacement across all seeds. In Run 3, displacements reached up to **$222.7\text{ m}$**, evaluation rewards climbed to **$+349.11$**, and live rewards reached **$+1091.81$**.
+> [!WARNING]
+> **Checkpoints Not Ready for M11–M14 Baseline Comparisons:**
+> While Run 3 successfully eliminated the dead-actor freeze of Run 1 and the total stand-still collapse ($v=0$) of Run 2, **the policy has not consolidated goal navigation**.
+> Independent 30-seed noise-sensitivity evaluation shows a **median displacement of 0.0m** and **0.0% arrival rate** across all evaluation noise levels ($\sigma_{\text{eval}} \in [0.0, 0.5]$) on both `ep4000` and `ep6000`.
 
-### Recommended Checkpoints for Downstream Evaluation:
-* **Primary Champion Checkpoint: `checkpoints/run3/td3_agent_ep4000.pt`**
-  - **Highest Mean Evaluation Reward:** **$+349.11$**
-  - **Farthest Mean Max Displacement:** **$222.7\text{ m}$**
-  - **Maximum Corner Escape Rate:** **$40.0\%$**
-* **Secondary Checkpoint: `checkpoints/run3/td3_agent_ep4500.pt`**
-  - **Mean Evaluation Reward:** **$+344.47$**
-  - **Mean Max Displacement:** **$203.5\text{ m}$**
-* **Final Checkpoint: `checkpoints/run3/td3_agent_ep6000.pt` (or `final.pt`)**
-  - Completed all 6,000 episodes; final rolling average: $+342.16$.
+### Full Noise Sensitivity Sweep (30 seeds, k=10):
+
+**td3_agent_ep6000.pt (Final Checkpoint):**
+| sigma_eval | Mean Max Disp (m) | Median Disp (m) | Frac > 50m (%) | Arrival Rate (%) | Mean Reward | Std Reward |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **0.00** | 21.0m | 0.0m | 3.3% | **0.0%** | +268.19 | 83.33 |
+| **0.05** | 22.0m | 0.0m | 3.3% | **0.0%** | +278.10 | 90.84 |
+| **0.10** | 21.9m | 0.0m | 3.3% | **0.0%** | +282.32 | 102.69 |
+| **0.20** | 41.2m | 0.0m | 6.7% | **0.0%** | +298.15 | 139.28 |
+| **0.30** | 41.0m | 0.0m | 6.7% | **0.0%** | +297.78 | 143.18 |
+| **0.50** | 45.0m | 0.0m | 16.7% | **0.0%** | +277.19 | 113.26 |
+
+**td3_agent_ep4000.pt:**
+| sigma_eval | Mean Max Disp (m) | Median Disp (m) | Frac > 50m (%) | Arrival Rate (%) | Mean Reward | Std Reward |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **0.00** | 144.1m | 0.0m | 26.7% | **0.0%** | +303.65 | 349.81 |
+| **0.05** | 143.9m | 0.0m | 30.0% | **0.0%** | +354.52 | 347.53 |
+| **0.10** | 146.8m | 0.0m | 36.7% | **0.0%** | +372.75 | 335.40 |
+| **0.20** | 195.6m | 0.0m | 40.0% | **0.0%** | +458.36 | 352.02 |
+| **0.30** | 221.2m | 0.0m | 40.0% | **0.0%** | +505.40 | 365.49 |
+| **0.50** | 149.1m | 34.0m | 43.3% | **0.0%** | +378.12 | 231.88 |
+
+### Key Diagnostic Takeaways:
+1. **0% Arrival Across the Board:** Neither checkpoint reaches $Q_{\text{END}}$ in any evaluation seed, even under substantial perturbation ($\sigma=0.5$).
+2. **Median Inaction:** Over 50% of seeds remain trapped at 0.0m displacement due to boundary cancellations at step 1 from corner start $Q_{\text{START}}$.
+3. **Noised Flight vs. Consolidation:** While training episodes occasionally hit arrival-scale rewards (>700), this was driven by early heuristic prior-knowledge exploration ($R_{\text{rand}}$) and exploratory noise rather than a consolidated deterministic policy.
+4. **Current Status:** Do not recommend any checkpoint as ready for downstream baselines until further diagnostic investigation resolves why the policy does not complete navigation.

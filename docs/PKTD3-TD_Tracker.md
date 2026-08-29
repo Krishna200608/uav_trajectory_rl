@@ -96,7 +96,7 @@ Algorithm 1, line 15, lists `r_n = r_n,1+r_n,2+r_n,3+r_n,4+r_n,5` — **omits r_
 | M6 | Prior-knowledge exploration policy (eq. 30–31) | M5 | **Done — reviewed, approved (un-normalization boundary cases hand-verified, incl. R_ex==R_rand edge)** |
 | M7 | TD3 networks + replay buffer | M0 | **Done — reviewed, approved (shapes, q1_forward consistency, and circular-buffer overwrite hand-verified)** |
 | M8 | TD3 update rules: clipped double-Q, delayed update, target smoothing (eq. 32–38) | M7 | **Done — reviewed, approved (delayed-update cadence and terminal-target zeroing hand-verified; gradient clipping added per CRITICAL FIX)** |
-| M9 | Training loop / full Algorithm 1 | M5, M6, M7, M8 | **Done — verified on full 6,000-ep Colab run (Run 3 in checkpoints/run3; no dead-actor saturation or stand-still collapse; peak eval reward +349.11 at ep4000)** |
+| M9 | Training loop / full Algorithm 1 | M5, M6, M7, M8 | **Done (code verified; Run 3 completed but unvalidated: 0% arrival rate on noise sweep, under active diagnosis)** |
 | M10 | Baseline: TDPK | M5 | **Done — reviewed, approved (geometry hand-verified: diagonal, vertical, and degenerate same-point cases all match spec exactly)** |
 | M11 | Baseline: Dueling DQL | M5 | Not started |
 | M12 | Baseline: PPO | M5 | Not started |
@@ -348,14 +348,49 @@ ANALYSIS & INTERPRETATION:
    - Charging energy on these cancelled moves drains reward while yielding 0 progress, and the actor gets trapped
      in boundary cancellation attractors.
 
-### Full 6,000-Episode Colab Run 3 Completed (`checkpoints/run3/`)
-Full training run executed on Google Colab Tesla T4 GPU across all 6,000 episodes (1,177,137 gradient updates) with the unified action-scale and state normalization fixes.
+### Run 3 Noise-Sensitivity Diagnostic & Evaluation Assessment (`checkpoints/run3/`)
+Full training run executed on Google Colab Tesla T4 GPU across 6,000 episodes (1,177,137 updates) with action-scale and state normalization fixes. Checkpoints synced to `checkpoints/run3/`.
 
-KEY RESULTS:
-1. **Saturation & Freezing Eliminated:** Output saturation bounded within healthy limits (17% to 58%), with checkpoint-to-checkpoint actor output differences consistently high ($0.32 \dots 0.62$).
-2. **Stand-Still Collapse Eliminated:** Mean Max Displacement reached **$222.7\text{ m}$**, with 40% of evaluation seeds escaping the initial corner zone. Current live training reward surged to **$+1091.81$** during goal-arrival episodes.
-3. **Peak Performance Checkpoint:** `checkpoints/run3/td3_agent_ep4000.pt` (Displacement: $222.7\text{ m}$, Mean Reward: **$+349.11$**).
-4. **All Artifacts Synced:** All 14 `.pt` model weights, `episode_rewards.npy`, `training_state.json`, and `training_reward_curve.png` are tracked and synced in `checkpoints/run3/`. Detailed real-time tracking logged in `docs/Colab_Actor_Saturation_Checks.md`.
+While Run 3 eliminated the dead-actor freeze of Run 1 and the total stand-still collapse ($v=0$) of Run 2, **the policy is NOT yet validated for downstream use (M11–M14)**. Independent 30-seed evaluation revealed that the deterministic policy yields a median displacement of 0.0m and 0% arrival rate on both `ep4000` and `ep6000`, despite 7–14% of training episodes (with exploration noise) hitting arrival-scale rewards (>700).
+
+To determine whether exploration noise was driving navigation and whether the critic's value landscape supports navigation, we executed a noise-sensitivity sweep (`scripts/diagnose_noise_sensitivity.py`) across 30 seeds (0–29, k=10) with $\sigma_{\text{eval}} \in [0.0, 0.05, 0.1, 0.2, 0.3, 0.5]$ added to actor output before clipping:
+
+#### Full Sweep Results:
+
+**td3_agent_ep6000.pt (Final Checkpoint):**
+| sigma_eval | Mean Max Disp (m) | Median Disp (m) | Frac > 50m (%) | Arrival Rate (%) | Mean Reward | Std Reward |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **0.00** | 21.0m | 0.0m | 3.3% | **0.0%** | +268.19 | 83.33 |
+| **0.05** | 22.0m | 0.0m | 3.3% | **0.0%** | +278.10 | 90.84 |
+| **0.10** | 21.9m | 0.0m | 3.3% | **0.0%** | +282.32 | 102.69 |
+| **0.20** | 41.2m | 0.0m | 6.7% | **0.0%** | +298.15 | 139.28 |
+| **0.30** | 41.0m | 0.0m | 6.7% | **0.0%** | +297.78 | 143.18 |
+| **0.50** | 45.0m | 0.0m | 16.7% | **0.0%** | +277.19 | 113.26 |
+
+**td3_agent_ep4000.pt:**
+| sigma_eval | Mean Max Disp (m) | Median Disp (m) | Frac > 50m (%) | Arrival Rate (%) | Mean Reward | Std Reward |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **0.00** | 144.1m | 0.0m | 26.7% | **0.0%** | +303.65 | 349.81 |
+| **0.05** | 143.9m | 0.0m | 30.0% | **0.0%** | +354.52 | 347.53 |
+| **0.10** | 146.8m | 0.0m | 36.7% | **0.0%** | +372.75 | 335.40 |
+| **0.20** | 195.6m | 0.0m | 40.0% | **0.0%** | +458.36 | 352.02 |
+| **0.30** | 221.2m | 0.0m | 40.0% | **0.0%** | +505.40 | 365.49 |
+| **0.50** | 149.1m | 34.0m | 43.3% | **0.0%** | +378.12 | 231.88 |
+
+#### Honest Diagnostic Interpretation:
+1. **Arrival Remains at 0.0% Across All Noise Levels:**
+   - Even under strong exploratory perturbation up to $\sigma_{\text{eval}} = 0.5$, neither checkpoint achieves a single arrival out of 30 seeds.
+   - This proves that the arrival-scale rewards (>700) observed during training were driven by the early prior-knowledge exploration regime ($R_{\text{ex}} \le R_{\text{rand}} = 20,000$ steps) and occasional lucky noise chains during training, rather than a learned, reproducible navigation policy.
+   - The failure to arrive cannot be attributed solely to the lack of test-time noise; something more fundamental is preventing the policy from completing navigation across the service area.
+2. **Median Displacement Remains 0.0m for >50% of Seeds:**
+   - For both checkpoints across nearly all noise levels, the median displacement is exactly 0.0m. Over half of the evaluation seeds never break out of the initial corner position at all due to boundary cancellation traps at step 1.
+3. **Checkpoint Comparison (`ep4000` vs `ep6000`):**
+   - `ep4000` is markedly more responsive to noise: its mean max displacement reaches up to 221.2m at $\sigma=0.30$, and 40% of seeds escape past 50m with mean reward reaching $+505.40$.
+   - `ep6000` regressed significantly toward the corner: max displacement is only 21–45m, with only 3–17% escaping past 50m.
+   - However, because arrival rate remains strictly 0.0% for both, neither checkpoint is ready or recommended for benchmark comparisons.
+4. **Conclusion:**
+   - The earlier "Pathology Resolution Confirmed" / "ep4000 champion checkpoint" framing is explicitly retracted.
+   - Run 3 is an improvement in training stability, but the deterministic navigation capability is NOT consolidated. Further investigation is required before proceeding to M11–M14.
 
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
