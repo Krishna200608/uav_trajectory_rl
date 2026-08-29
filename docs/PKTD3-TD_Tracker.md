@@ -507,6 +507,12 @@ Instrumented `scripts/train.py` to record episode steps, arrival flags, and phas
 > Because `REPLAY_SIZE = 100,000`, the circular buffer completely overwrote and discarded all initial prior-knowledge arrival transitions by step 120,000 (~episode 600).
 > **From episode 600 onwards, the replay buffer contained literally 0 arrival transitions.** The TD3 critic was computing Bellman updates exclusively on non-arrival data.
 
+> [!NOTE]
+> **Causal Record Correction:**
+> Replay-buffer purging (evicting the initial ~20k transitions once cumulative steps exceed the 100k buffer capacity at ~ep600) cannot be the *original trigger* of the 0% arrival failure. Checkpoint `ep200.pt` ($R_{\text{ex}} \approx 37,000$) already exhibits a strict 0.0% arrival rate and 0.0m median displacement, long before any PK-phase data could have been overwritten.
+> Replay buffer purging entrenches the failure and prevents mid-to-late recovery, but the initial breakdown occurs directly at the **PK-to-network handoff itself** (episodes 115–150).
+> **Revised Priority:** Extend $R_{\text{rand}}$ (e.g. to 60,000, 3x the default, within the paper's Fig. 10 explored sensitivity regime) to test whether substantially more PK-phase seeding prevents the handoff collapse in the first place.
+
 #### Step 2: Diagnostic Ablation — Higher Horizon ($\gamma = 0.99$)
 Executed `scripts/train.py --episodes 800 --seed 0 --gamma 0.99 --checkpoint-dir checkpoints/diag_gamma099 --checkpoint-every 200` (CLI override wired to `TD3Agent`, keeping `config.GAMMA = 0.96` default intact).
 Evaluated all checkpoints across 20 deterministic seeds (0–19, $k=10$) side-by-side with $\gamma = 0.96$:
@@ -530,6 +536,41 @@ Evaluated all checkpoints across 20 deterministic seeds (0–19, $k=10$) side-by
 4. **Current Recommendation:**
    - Do NOT start a full Colab run yet.
    - The root pathology is now isolated: (1) the hard cutoff at $R_{\text{rand}} = 20,000$ leaves the actor with zero ongoing arrival demonstrations, and (2) standard circular buffer overwrite purges all positive arrival transitions.
+
+### R_RAND Extension Ablation: PK-to-Network Handoff Diagnostic (`checkpoints/diag_rrand60k/`)
+Tested whether tripling the prior-knowledge seeding phase ($R_{\text{rand}} = 60,000$, $\sim 343$ PK episodes, 3x the paper's default of 20,000 and the upper sensitivity range explored in Fig. 10) prevents the policy collapse observed at the PK-to-network handoff.
+
+#### Replay Buffer Composition Comparison (Network Phase Only):
+| Metric | Run A ($R_{\text{rand}} = 20,000$, Default) | Run B ($R_{\text{rand}} = 60,000$, 3x Extension) |
+| :--- | :---: | :---: |
+| **PK-Phase Duration** | Episodes 1–115 (20,000 steps) | Episodes 1–343 (60,000 steps) |
+| **Network-Phase Episodes** | 685 episodes (eps 116–800) | 457 episodes (eps 344–800) |
+| **Arrived Network Episodes** | **0 (0.0%)** | **0 (0.0%)** |
+| **Mean Steps (Arrived / Non-Arrived)** | 0.0 / 200.0 steps | 0.0 / 200.0 steps |
+| **Total Transitions in Network Phase** | 137,000 transitions | 91,400 transitions |
+| **Transitions from Arrived Episodes** | **0 (0.00%)** | **0 (0.00%)** |
+| **Transitions from Non-Arrived Episodes** | **137,000 (100.00%)** | **91,400 (100.00%)** |
+
+#### Deterministic Evaluation Table (20 Seeds, $k=10$, Run B: $R_{\text{rand}} = 60,000$):
+| Checkpoint | Total Updates at Ckpt | Mean Max Disp (m) | Median Disp (m) | Frac > 50m (%) | **Arrival Rate (%)** | Mean Reward |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| `td3_agent_ep200.pt` | 0 (Untrained random init) | 208.0 m | 0.0 m | 35.0% | **0.0%** | +225.03 |
+| `td3_agent_ep400.pt` | 11,501 updates | 24.2 m | 0.0 m | 10.0% | **0.0%** | +129.51 |
+| `td3_agent_ep600.pt` | 51,501 updates | 51.8 m | 0.0 m | 25.0% | **0.0%** | +162.98 |
+| `td3_agent_final.pt` (ep800) | 91,501 updates | 106.9 m | 0.0 m | 35.0% | **0.0%** | +287.10 |
+
+#### Honest Engineering Read: Was R_RAND the Missing Piece?
+1. **Did Arrival Rate Move Off Zero?**
+   - **NO. Arrival rate is STILL STRICTLY 0.0% across all checkpoints (0 arrivals out of 80 deterministic rollouts).**
+   - Post-handoff arrival rate during training was also **0 out of 457 episodes (0.0%)**.
+2. **Definitive Conclusion on Data Quantity:**
+   - Tripling the prior-knowledge buffer seeding (60,000 transitions from 343 arrival trajectories) did **not** enable the actor to navigate to the goal upon handoff.
+   - This proves conclusively that the handoff failure is **NOT a data-quantity problem**. Giving the critic 3x more arrival demonstrations does not prevent the actor network from collapsing into the corner once handed control.
+3. **The Collapse Phenomenon at Handoff:**
+   - At `td3_agent_ep200.pt` (0 updates, random initial weights), mean displacement was 208.0m.
+   - Once TD3 updates began at episode 344, the actor collapsed at `ep400` down to 24.2m displacement and only 10% escapes. The critic updates actively drove the actor policy *into* the corner.
+4. **Next Diagnostic Priority:**
+   - Examine the **actor's specific action output and critic gradient $\nabla_a Q(s, a)$ at the exact corner state $(0,0,50)$ right at the handoff moment**. Why does the actor gradient push the actor into the boundary walls at $Q_{\text{START}}$ rather than reproducing the prior-knowledge velocity vector?
 
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
