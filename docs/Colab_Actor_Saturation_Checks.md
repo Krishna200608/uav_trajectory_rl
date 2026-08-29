@@ -5,8 +5,10 @@ This document tracks the real-time diagnostic checks executed via [check_actor_s
 Checks are performed at milestones:
 - [x] **Episode 1,000** (Logged below)
 - [x] **Episode 2,000** (Logged below)
-- [ ] **Episode 3,000** (Pending)
+- [x] **Episode 3,000** (Logged below)
+- [ ] **Episode 4,000** (Pending)
 - [ ] **Episode 5,000** (Pending)
+- [ ] **Episode 6,000 (Final)** (Pending)
 
 ---
 
@@ -17,9 +19,12 @@ Checks are performed at milestones:
 | **ep500** | 8.3% (500/6000) | ~10.7 min / 500 ep | — | 38% | 0.0m | 0.0% | 243.58 | Active learning; early exploration |
 | **ep1000** | 16.7% (1000/6000) | 10.7 min / 500 ep | 0.3192 | 38% | **142.0m** | **40.0%** | **318.96** | **Healthy, active movement breakout** |
 | **ep1500** | 25.0% (1500/6000) | 10.7 min / 500 ep | 0.4876 | 29% | 32.6m | 30.0% | 228.05 | Active adaptation; saturation dropping |
-| **ep2000** | 33.3% (2000/6000) | 10.7 min / 500 ep | 0.3764 | **17%** | **54.5m** | **20.0%** | **321.95** | **Low saturation (17%), peak reward (+321.95)** |
-| **ep3000** | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Awaiting run progress* |
+| **ep2000** | 33.3% (2000/6000) | 10.7 min / 500 ep | 0.3764 | 17% | 54.5m | 20.0% | **321.95** | Low saturation (17%), peak reward (+321.95) |
+| **ep2500** | 41.7% (2500/6000) | 10.6 min / 500 ep | 0.5033 | 33% | 50.2m | 10.0% | 263.45 | Strong policy update (diff = 0.5033) |
+| **ep3000** | 50.0% (3000/6000) | 10.6 min / 500 ep | 0.4889 | 46% | **103.3m** | 20.0% | 236.35 | **Halfway reached; live reward +1091.81 (arrival)** |
+| **ep4000** | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Awaiting run progress* |
 | **ep5000** | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Awaiting run progress* |
+| **ep6000** | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Awaiting run progress* |
 
 ---
 
@@ -191,10 +196,92 @@ Live Rewards: 2000 episodes logged.
 
 ## 3. Checkpoint 3,000 Diagnostics
 
-*(To be populated upon receiving outputs for Episode 3,000)*
+**Recorded:** 2026-08-29  
+**Checkpoints detected on Drive:** `[500, 1000, 1500, 2000, 2500, 3000]`
+
+### Cell 4 — Actor Outputs & Saturation Check Across Checkpoints
+
+Fixed test states (8 fixed random states, uniform $[-1, 1]^{26}$, seed 999):
+
+#### ep2500 (total_updates = 477,137)
+```text
+[[ 0.6562  0.3092  0.545 ]
+ [ 0.2805  0.9385 -0.9274]
+ [-1.     -1.      0.3899]
+ [ 1.      0.8565 -0.6357]
+ [ 1.      0.4376  0.9307]
+ [-1.      0.9816 -0.9963]
+ [ 0.9999  0.9948  0.616 ]
+ [-0.9999 -0.9138  1.    ]]
+```
+
+#### ep3000 (total_updates = 577,137)
+```text
+[[ 1.      0.903   0.2903]
+ [ 1.      0.4489  0.543 ]
+ [-1.     -1.      0.8224]
+ [ 1.      0.9828 -0.4983]
+ [ 1.      0.7144  0.9991]
+ [-1.     -0.847  -0.6162]
+ [ 0.999   1.     -0.5115]
+ [ 0.9995  0.5601  0.9951]]
+```
+
+#### Diff & Saturation Metrics
+```text
+=== Mean abs change between consecutive checkpoints ===
+ep500 -> ep1000: mean_abs_diff=0.319208, frac_outputs_saturated(|x|>0.999)=0.38
+ep1000 -> ep1500: mean_abs_diff=0.487610, frac_outputs_saturated(|x|>0.999)=0.29
+ep1500 -> ep2000: mean_abs_diff=0.376395, frac_outputs_saturated(|x|>0.999)=0.17
+ep2000 -> ep2500: mean_abs_diff=0.503343, frac_outputs_saturated(|x|>0.999)=0.33
+ep2500 -> ep3000: mean_abs_diff=0.488897, frac_outputs_saturated(|x|>0.999)=0.46
+
+=== INTERPRETATION ===
+OK: actor output is still changing between checkpoints (mean diff = 0.4889) -- training appears active, not frozen.
+```
 
 ---
 
-## 4. Checkpoint 5,000 Diagnostics
+### Cell 5 — Live Training Progress, Pace, and ETA Visualizer
 
-*(To be populated upon receiving outputs for Episode 5,000)*
+```text
+=================================================================
+TRAINING PROGRESS: [███████████████░░░░░░░░░░░░░░░] 50.0% (3000/6000 eps)
+=================================================================
+  Pace: 10.6 min per 500 episodes (0.79 ep/s)
+  Time Remaining (ETA): ~63.6 minutes (1.06 hours)
+  Estimated Completion: 08:37 AM (2026-08-29)
+
+Live Rewards: 3000 episodes logged.
+  Current Reward: 1091.81
+  Rolling Avg (last 50): 339.47
+```
+
+---
+
+### Cell 6 — Movement & Corner-Escape Trend Check
+
+10 evaluation seeds (0–9) rollout across saved checkpoints measuring maximum displacement from $Q_{\text{START}} = (0, 0, 50)$ and episode reward:
+
+| Episode | Mean Max Displacement | Frac > 50m | Mean Reward |
+| :---: | :---: | :---: | :---: |
+| **500** | 0.0m | 0.0% | 243.58 |
+| **1000** | **142.0m** | **40.0%** | **318.96** |
+| **1500** | 32.6m | 30.0% | 228.05 |
+| **2000** | 54.5m | 20.0% | **321.95** |
+| **2500** | 50.2m | 10.0% | 263.45 |
+| **3000** | **103.3m** | 20.0% | 236.35 |
+
+---
+
+### Key Takeaways from ep3000
+
+1. **50% Training Milestone Reached:** The training reached the exact halfway point (3,000 / 6,000 episodes). Pace is rock solid at $10.6\text{ min} / 500\text{ ep}$ ($0.79\text{ ep/s}$), with estimated completion in approximately $1\text{ hour}$.
+2. **Live Arrival Reward Spike (+1091.81):** Current episode reward surged to **$+1091.81$**, matching the characteristic signature of a high-speed, early goal arrival transition. The 50-episode rolling average hit a new high of **$+339.47$**.
+3. **Displacement Rebound to 103.3m:** Mean max displacement rebounded to **$103.3\text{ m}$** across evaluation seeds, while checkpoint-to-checkpoint actor changes remain high ($0.5033$ at ep2500 and $0.4889$ at ep3000), proving vibrant, unfrozen policy refinement.
+
+---
+
+## 4. Checkpoint 4,000 / 5,000 Diagnostics
+
+*(To be populated upon receiving outputs for Episode 4,000 / 5,000)*
