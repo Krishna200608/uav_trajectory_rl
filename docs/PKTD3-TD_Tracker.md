@@ -659,5 +659,50 @@ Stop guessing structural training changes. Directly inspect the actor and critic
   - Action D: Actor's chosen action.
 See exactly what the critic believes and why the actor gradient selects the corner trap.
 
+### Direct Actor/Critic Inspection at Q_START across Checkpoints (`checkpoints/diag_rrand60k/`)
+Conducted direct numerical inspection of the neural networks at the exact initial corner state $s_0 = \text{env.reset()}$ ($Q_{\text{START}} = (0, 0, 50)$, seed 0, $K=10$) to measure raw actor output, critic $Q_1$ valuations for reference actions, and the local policy gradient $\nabla_a Q_1(s_0, a)$ driving the actor.
+
+#### Initial State $s_0$ (26 elements):
+- **UAV Position:** $(0.0, 0.0, 50.0)\text{ m}$ (sitting directly on three spatial boundaries: $x=0, y=0, z=50$)
+- **Vector Elements:**
+  `[-1.0, -1.0, -1.0, 0.2739, 0.6317, -0.4604, -0.9945, -0.9181, 0.7148, -0.9669, -0.9328, 0.6265, 0.4593, 0.8255, -0.6487, 0.2133, 0.7264, 0.459, 0.0829, 0.0872, -0.4006, 0.8701, -0.1546, 0.0, 1.0, 0.9847]`
+
+#### Reference Actions (Physical $\rightarrow$ Normalized $[-1, 1]$):
+- **Action A [PK toward goal]:** $v = 20\text{ m/s}, \lambda = 90^\circ, \rho = +45^\circ \implies \mathbf{a}_{\text{norm}} = [1.0, 0.0, 0.25]$
+- **Action B [Hover]:** $v = 0\text{ m/s}, \lambda = 90^\circ, \rho = 0^\circ \implies \mathbf{a}_{\text{norm}} = [-1.0, 0.0, 0.0]$
+- **Action C [Into the wall]:** $v = 20\text{ m/s}, \lambda = 90^\circ, \rho = -135^\circ \implies \mathbf{a}_{\text{norm}} = [1.0, 0.0, -0.75]$
+- **Action D [Actor's own output]:** $\mu(s_0)$
+
+#### Step 1 & 2: Actor Output & Critic $Q_1$ Values at $Q_{\text{START}}$:
+| Checkpoint | Actor Output (norm) | Actor Action (phys) | $Q_1(\text{A: PK})$ | $Q_1(\text{B: Hov})$ | $Q_1(\text{C: Wall})$ | $Q_1(\text{D: Actor})$ |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: |
+| `td3_agent_ep200.pt` | `[+0.002, +0.001, +0.002]` | $v=10.0\text{ m/s}, \lambda=+90.1^\circ, \rho=+0.4^\circ$ | $-0.00$ | $-0.00$ | $-0.00$ | $-0.00$ |
+| `td3_agent_ep400.pt` | `[+0.591, +0.238, -0.876]` | $v=15.9\text{ m/s}, \lambda=+111.4^\circ, \rho=-157.7^\circ$ | $+43.35$ | $+42.39$ | $\mathbf{+43.49}$ | $\mathbf{+43.44}$ |
+| `td3_agent_ep600.pt` | `[+0.491, +0.362, -0.461]` | $v=14.9\text{ m/s}, \lambda=+122.6^\circ, \rho=-83.0^\circ$ | $+42.94$ | $+41.45$ | $\mathbf{+43.42}$ | $+41.93$ |
+| `td3_agent_final.pt` | `[+0.966, -0.607, -0.271]` | $v=19.7\text{ m/s}, \lambda=+35.4^\circ, \rho=-48.8^\circ$ | $+35.72$ | $+33.66$ | $\mathbf{+36.54}$ | $\mathbf{+39.89}$ |
+
+#### Step 3: Local Policy Gradient $\nabla_a Q_1(s_0, a)$ at Actor's Output:
+| Checkpoint | $\frac{\partial Q_1}{\partial v_{\text{norm}}}$ | $\frac{\partial Q_1}{\partial \lambda_{\text{norm}}}$ | $\frac{\partial Q_1}{\partial \rho_{\text{norm}}}$ | Interpretation |
+| :--- | :---: | :---: | :---: | :--- |
+| `td3_agent_ep200.pt` | $-0.0001$ | $+0.0004$ | $-0.0001$ | Pushing towards $v \rightarrow -1$ (less speed) |
+| `td3_agent_ep400.pt` | $-0.5489$ | $-0.9385$ | $-0.2926$ | Pushing towards $v \rightarrow -1$ (less speed) & $\rho \rightarrow -1$ (westward) |
+| `td3_agent_ep600.pt` | $+0.9181$ | $-3.4426$ | $+1.0442$ | Pushing $\lambda \rightarrow -1$ (downward into ground) |
+| `td3_agent_final.pt` | $+3.2873$ | $-7.2445$ | $-2.2857$ | Pushing $\lambda \rightarrow -1$ (into ground) & $\rho \rightarrow -1$ (into wall) |
+
+#### Cross-Run Verification (`run3/td3_agent_final.pt` & `diag_channelfix/td3_agent_final.pt`):
+- `run3/td3_agent_final.pt`: Actor output is $v=20.0\text{ m/s}, \lambda=+174.7^\circ, \rho=+158.3^\circ$.
+  $\rho = +158.3^\circ$ commands heading towards negative $x$ ($\Delta x < 0$); $\lambda = 174.7^\circ$ commands diving straight into ground ($z < 50$).
+  Critic evaluates: $Q_1(\text{A: PK}) = +62.43$, $Q_1(\text{C: Wall}) = +57.31$, $Q_1(\text{D: Actor}) = +61.48$.
+- `diag_channelfix/td3_agent_final.pt`: Actor output is $v=20.0\text{ m/s}, \lambda=+9.9^\circ, \rho=+171.3^\circ$ ($\Delta x < 0$, westward into wall).
+
+#### Key Numerical Findings:
+1. **Actor Consistently Commands Immediate Boundary Collisions at $Q_{\text{START}}$:**
+   At every post-handoff checkpoint across multiple runs, the actor commands an azimuth $\rho$ in a negative quadrant ($\rho \in [-180^\circ, 0^\circ]$ or $[+150^\circ, +180^\circ]$) which creates $\Delta x < 0$ or $\Delta y < 0$, or a pitch $\lambda$ pointing into the ground ($z < 50$). Because the UAV starts on the boundaries $(0, 0, 50)$, **these moves are instantaneously cancelled by the environment on Step 1**. The UAV never leaves the corner.
+2. **The Critic Actively Prefers Boundary Collisions Over Goal Navigation:**
+   At `ep400`, `ep600`, and `final` in `diag_rrand60k`, the critic assigns **higher Q-value to Action C ("Into the wall", $Q_1 = +36.54 \text{ to } +43.49$) than Action A ("Prior knowledge toward goal", $Q_1 = +35.72 \text{ to } +43.35$)**!
+   Furthermore, the actor's own action (which rams into the ground/wall) achieves $Q_1 = +39.89$, outscoring valid goal flight ($+35.72$) by $+4.17$ points.
+3. **The Local Policy Gradient Drives the Actor Directly into the Boundary:**
+   The gradient $\frac{\partial Q_1}{\partial \rho_{\text{norm}}}$ and $\frac{\partial Q_1}{\partial \lambda_{\text{norm}}}$ at `final.pt` are large and negative ($-2.29$ and $-7.24$), actively steering the actor's heading and pitch into the negative boundary walls.
+
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
