@@ -6,7 +6,7 @@ Checks are performed at milestones:
 - [x] **Episode 1,000** (Logged below)
 - [x] **Episode 2,000** (Logged below)
 - [x] **Episode 3,000** (Logged below)
-- [ ] **Episode 4,000** (Pending)
+- [x] **Episode 4,000** (Logged below)
 - [ ] **Episode 5,000** (Pending)
 - [ ] **Episode 6,000 (Final)** (Pending)
 
@@ -17,12 +17,13 @@ Checks are performed at milestones:
 | Milestone | Training Progress | Training Pace | Mean Abs Diff | Saturation Frac | Mean Max Disp | Frac > 50m | Mean Eval Reward | Status / Health |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
 | **ep500** | 8.3% (500/6000) | ~10.7 min / 500 ep | — | 38% | 0.0m | 0.0% | 243.58 | Active learning; early exploration |
-| **ep1000** | 16.7% (1000/6000) | 10.7 min / 500 ep | 0.3192 | 38% | **142.0m** | **40.0%** | **318.96** | **Healthy, active movement breakout** |
+| **ep1000** | 16.7% (1000/6000) | 10.7 min / 500 ep | 0.3192 | 38% | 142.0m | 40.0% | 318.96 | Healthy, active movement breakout |
 | **ep1500** | 25.0% (1500/6000) | 10.7 min / 500 ep | 0.4876 | 29% | 32.6m | 30.0% | 228.05 | Active adaptation; saturation dropping |
-| **ep2000** | 33.3% (2000/6000) | 10.7 min / 500 ep | 0.3764 | 17% | 54.5m | 20.0% | **321.95** | Low saturation (17%), peak reward (+321.95) |
+| **ep2000** | 33.3% (2000/6000) | 10.7 min / 500 ep | 0.3764 | 17% | 54.5m | 20.0% | 321.95 | Low saturation (17%), peak reward (+321.95) |
 | **ep2500** | 41.7% (2500/6000) | 10.6 min / 500 ep | 0.5033 | 33% | 50.2m | 10.0% | 263.45 | Strong policy update (diff = 0.5033) |
-| **ep3000** | 50.0% (3000/6000) | 10.6 min / 500 ep | 0.4889 | 46% | **103.3m** | 20.0% | 236.35 | **Halfway reached; live reward +1091.81 (arrival)** |
-| **ep4000** | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Awaiting run progress* |
+| **ep3000** | 50.0% (3000/6000) | 10.6 min / 500 ep | 0.4889 | 46% | 103.3m | 20.0% | 236.35 | Halfway reached; live reward +1091.81 (arrival) |
+| **ep3500** | 58.3% (3500/6000) | 10.6 min / 500 ep | 0.5002 | 38% | 131.9m | 30.0% | 256.33 | Steady displacement climb |
+| **ep4000** | 66.7% (4000/6000) | 10.6 min / 500 ep | 0.4884 | 54% | **222.7m** | **40.0%** | **349.11** | **New peak displacement (222.7m) & reward (+349.11)** |
 | **ep5000** | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Awaiting run progress* |
 | **ep6000** | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Awaiting run progress* |
 
@@ -282,6 +283,105 @@ Live Rewards: 3000 episodes logged.
 
 ---
 
-## 4. Checkpoint 4,000 / 5,000 Diagnostics
+## 4. Checkpoint 4,000 Diagnostics
 
-*(To be populated upon receiving outputs for Episode 4,000 / 5,000)*
+**Recorded:** 2026-08-29  
+**Checkpoints detected on Drive:** `[500, 1000, 1500, 2000, 2500, 3000, 3500, 4000]`
+
+### Cell 4 — Actor Outputs & Saturation Check Across Checkpoints
+
+Fixed test states (8 fixed random states, uniform $[-1, 1]^{26}$, seed 999):
+
+#### ep3500 (total_updates = 677,137)
+```text
+[[ 1.      0.9873  0.5106]
+ [ 0.9991 -0.9159 -0.8017]
+ [-1.     -1.     -0.78  ]
+ [ 1.      0.9762 -0.8921]
+ [ 1.      1.      0.9976]
+ [-1.      0.9857 -0.9972]
+ [-1.      0.2943 -0.9945]
+ [ 0.1509  0.4178  0.6878]]
+```
+
+#### ep4000 (total_updates = 777,137)
+```text
+[[ 0.2722  0.9968  0.2972]
+ [-1.      1.     -0.997 ]
+ [-1.     -1.     -1.    ]
+ [ 1.      1.     -0.9995]
+ [ 1.      1.      0.9525]
+ [-1.     -0.6545 -1.    ]
+ [ 0.9289 -0.9956 -0.9739]
+ [ 1.      0.9281  0.7097]]
+```
+
+#### Diff & Saturation Metrics
+```text
+=== Mean abs change between consecutive checkpoints ===
+ep500 -> ep1000: mean_abs_diff=0.319208, frac_outputs_saturated(|x|>0.999)=0.38
+ep1000 -> ep1500: mean_abs_diff=0.487610, frac_outputs_saturated(|x|>0.999)=0.29
+ep1500 -> ep2000: mean_abs_diff=0.376395, frac_outputs_saturated(|x|>0.999)=0.17
+ep2000 -> ep2500: mean_abs_diff=0.503343, frac_outputs_saturated(|x|>0.999)=0.33
+ep2500 -> ep3000: mean_abs_diff=0.488897, frac_outputs_saturated(|x|>0.999)=0.46
+ep3000 -> ep3500: mean_abs_diff=0.500188, frac_outputs_saturated(|x|>0.999)=0.38
+ep3500 -> ep4000: mean_abs_diff=0.488374, frac_outputs_saturated(|x|>0.999)=0.54
+
+=== INTERPRETATION ===
+OK: actor output is still changing between checkpoints (mean diff = 0.4884) -- training appears active, not frozen.
+```
+
+---
+
+### Cell 5 — Live Training Progress, Pace, and ETA Visualizer
+
+```text
+=================================================================
+TRAINING PROGRESS: [████████████████████░░░░░░░░░░] 66.7% (4000/6000 eps)
+=================================================================
+  Pace: 10.6 min per 500 episodes (0.79 ep/s)
+  Time Remaining (ETA): ~42.2 minutes (0.70 hours)
+  Estimated Completion: 08:38 AM (2026-08-29)
+
+Live Rewards: 4000 episodes logged.
+  Current Reward: 460.76
+  Rolling Avg (last 50): 307.43
+```
+
+---
+
+### Cell 6 — Movement & Corner-Escape Trend Check
+
+10 evaluation seeds (0–9) rollout across saved checkpoints measuring maximum displacement from $Q_{\text{START}} = (0, 0, 50)$ and episode reward:
+
+| Episode | Mean Max Displacement | Frac > 50m | Mean Reward |
+| :---: | :---: | :---: | :---: |
+| **500** | 0.0m | 0.0% | 243.58 |
+| **1000** | 142.0m | 40.0% | 318.96 |
+| **1500** | 32.6m | 30.0% | 228.05 |
+| **2000** | 54.5m | 20.0% | 321.95 |
+| **2500** | 50.2m | 10.0% | 263.45 |
+| **3000** | 103.3m | 20.0% | 236.35 |
+| **3500** | 131.9m | 30.0% | 256.33 |
+| **4000** | **222.7m** | **40.0%** | **349.11** |
+
+---
+
+### Key Takeaways from ep4000
+
+1. **New All-Time Highs in Displacement & Reward:**
+   - **Mean Max Displacement:** Surged to **$222.7\text{ m}$**, the farthest sustained flight distance across all checkpoints to date.
+   - **Evaluation Mean Reward:** Climbed to **$+349.11$**, setting the highest benchmark reward in the run so far.
+   - **Consistent Escape Fraction:** The fraction of seeds escaping the 50m radius doubled from ep2500 (10%) to **40.0%** at ep4000.
+2. **Smooth, Monotonic 3-Checkpoint Ascent:**
+   $$\text{ep2500: } 50.2\text{m} \longrightarrow \text{ep3000: } 103.3\text{m} \longrightarrow \text{ep3500: } 131.9\text{m} \longrightarrow \mathbf{\text{ep4000: } 222.7\text{m}}$$
+3. **Approaching the Final Stretch:**
+   - **66.7% completed** (4,000 / 6,000 episodes).
+   - Only $\approx 42\text{ minutes}$ ($\approx 0.70\text{ hours}$) remaining on the Colab T4 instance.
+   - Live reward is strong at **$+460.76$**, and the 50-episode rolling average is firmly anchored above $+307$.
+
+---
+
+## 5. Checkpoint 5,000 / 6,000 Diagnostics
+
+*(To be populated upon receiving outputs for Episode 5,000 / 6,000 Final)*
