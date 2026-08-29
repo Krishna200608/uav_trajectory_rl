@@ -173,6 +173,7 @@ class TD3Agent:
         batch_size: int,
         rng: np.random.Generator,
         arrived_fraction: Optional[float] = None,
+        terminal_window: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Execute one training step of the TD3 algorithm (Algorithm 1, Lines 17-27).
@@ -187,6 +188,9 @@ class TD3Agent:
             arrived_fraction: Optional float (e.g. 0.3) for stratified replay sampling.
                 When provided, guarantees the specified fraction of the batch is drawn
                 from arrived episodes to prevent majority-failure dilution.
+            terminal_window: Optional int (e.g. 15). When provided alongside arrived_fraction,
+                samples arrived transitions specifically from the last N steps of arrived
+                episodes to accelerate backward TD credit propagation.
 
         Returns:
             dict: Diagnostics dictionary containing:
@@ -196,11 +200,19 @@ class TD3Agent:
         """
         # 1. Sample mini-batch and convert to torch tensors on self.device
         if arrived_fraction is not None and arrived_fraction > 0.0:
-            states, actions, rewards, next_states, dones = replay_buffer.sample_stratified(
-                batch_size=batch_size,
-                arrived_fraction=arrived_fraction,
-                rng=rng,
-            )
+            if terminal_window is not None and terminal_window > 0:
+                states, actions, rewards, next_states, dones = replay_buffer.sample_terminal_weighted(
+                    batch_size=batch_size,
+                    arrived_fraction=arrived_fraction,
+                    terminal_window=terminal_window,
+                    rng=rng,
+                )
+            else:
+                states, actions, rewards, next_states, dones = replay_buffer.sample_stratified(
+                    batch_size=batch_size,
+                    arrived_fraction=arrived_fraction,
+                    rng=rng,
+                )
         else:
             states, actions, rewards, next_states, dones = replay_buffer.sample(batch_size, rng)
 

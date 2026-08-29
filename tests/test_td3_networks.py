@@ -267,3 +267,92 @@ def test_replay_buffer_sample_stratified_fallback():
     # The 1 arrived transition should be included, rest filled from non-arrived
     assert np.sum(rewards == 999.0) >= 1
 
+
+def test_steps_from_terminal_tracking():
+    """
+    Test that steps_from_terminal is populated correctly in ReplayBuffer.
+    """
+    capacity = 100
+    state_dim = 2
+    action_dim = 2
+    buf = ReplayBuffer(state_dim=state_dim, action_dim=action_dim, capacity=capacity)
+
+    ep_length = 10
+    for i in range(ep_length):
+        steps_from_terminal = ep_length - 1 - i
+        buf.add(
+            state=np.zeros(state_dim),
+            action=np.zeros(action_dim),
+            reward=float(i),
+            next_state=np.zeros(state_dim),
+            done=(i == ep_length - 1),
+            arrived=True,
+            steps_from_terminal=steps_from_terminal,
+        )
+
+    # First step should have steps_from_terminal = 9
+    assert buf.steps_from_terminal[0] == 9
+    # Last step should have steps_from_terminal = 0
+    assert buf.steps_from_terminal[9] == 0
+    assert buf.steps_from_terminal[8] == 1
+
+
+def test_replay_buffer_sample_terminal_weighted():
+    """
+    Test that sample_terminal_weighted samples arrived transitions strictly within terminal_window.
+    """
+    capacity = 50
+    state_dim = 2
+    action_dim = 2
+    buf = ReplayBuffer(state_dim=state_dim, action_dim=action_dim, capacity=capacity)
+    rng = np.random.default_rng(789)
+
+    # 1. Add 20 arrived transitions (episode length 20)
+    ep_len = 20
+    for i in range(ep_len):
+        steps_from_terminal = ep_len - 1 - i
+        # Steps with steps_from_terminal < 5 get reward >= 5000.0
+        # Earlier steps get reward 100.0 + i
+        rew = 5000.0 + float(i) if steps_from_terminal < 5 else 100.0 + float(i)
+        buf.add(
+            state=np.ones(state_dim) * i,
+            action=np.ones(action_dim),
+            reward=rew,
+            next_state=np.ones(state_dim) * (i + 1),
+            done=(i == ep_len - 1),
+            arrived=True,
+            steps_from_terminal=steps_from_terminal,
+        )
+
+    # 2. Add 20 non-arrived transitions (reward < 50.0)
+    for i in range(20):
+        buf.add(
+            state=np.zeros(state_dim),
+            action=np.zeros(action_dim),
+            reward=float(i),
+            next_state=np.zeros(state_dim),
+            done=False,
+            arrived=False,
+            steps_from_terminal=19 - i,
+        )
+
+    # Sample batch of 8 with arrived_fraction=0.5 -> exactly 4 arrived transitions
+    # terminal_window=5 -> all arrived transitions MUST have steps_from_terminal < 5 (reward >= 5000)
+    states, actions, rewards, next_states, dones = buf.sample_terminal_weighted(
+        batch_size=8,
+        arrived_fraction=0.5,
+        terminal_window=5,
+        rng=rng,
+    )
+
+    assert states.shape == (8, state_dim)
+    arrived_terminal_count = int(np.sum(rewards >= 5000.0))
+    non_arrived_count = int(np.sum(rewards < 50.0))
+    earlier_arrived_count = int(np.sum((rewards >= 100.0) & (rewards < 5000.0)))
+
+    # All 4 arrived transitions must be from the terminal window (rewards >= 5000)
+    assert arrived_terminal_count == 4, f"Expected 4 terminal-window transitions, got {arrived_terminal_count}"
+    assert earlier_arrived_count == 0, f"Expected 0 non-terminal arrived transitions, got {earlier_arrived_count}"
+    assert non_arrived_count == 4, f"Expected 4 other transitions, got {non_arrived_count}"
+
+

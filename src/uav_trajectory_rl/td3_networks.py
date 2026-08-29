@@ -235,6 +235,7 @@ class ReplayBuffer:
         self.next_states: np.ndarray = np.zeros((capacity, state_dim), dtype=np.float32)
         self.dones: np.ndarray = np.zeros((capacity, 1), dtype=np.float32)
         self.arrived: np.ndarray = np.zeros((capacity,), dtype=bool)
+        self.steps_from_terminal: np.ndarray = np.zeros((capacity,), dtype=np.int32)
 
         self.ptr: int = 0
         self.size: int = 0
@@ -247,6 +248,7 @@ class ReplayBuffer:
         next_state: np.ndarray,
         done: bool,
         arrived: bool = False,
+        steps_from_terminal: int = 0,
     ) -> None:
         """
         Store a new transition tuple into the circular buffer.
@@ -258,6 +260,7 @@ class ReplayBuffer:
             next_state: Next state vector observed.
             done: Terminal flag (True if episode ended).
             arrived: Whether the transition belonged to an episode that reached Q_END.
+            steps_from_terminal: Distance in steps from the end of the episode (0 = terminal step).
         """
         self.states[self.ptr] = state
         self.actions[self.ptr] = action
@@ -265,6 +268,7 @@ class ReplayBuffer:
         self.next_states[self.ptr] = next_state
         self.dones[self.ptr] = float(done)
         self.arrived[self.ptr] = bool(arrived)
+        self.steps_from_terminal[self.ptr] = int(steps_from_terminal)
 
         self.ptr = (self.ptr + 1) % self.capacity
         self.size = min(self.size + 1, self.capacity)
@@ -358,6 +362,83 @@ class ReplayBuffer:
             sampled_other = rng.choice(other_indices, size=actual_n_other, replace=False)
         else:
             sampled_other = rng.choice(self.size, size=actual_n_other, replace=True)
+
+        sampled_indices = np.concatenate([sampled_arrived, sampled_other])
+        rng.shuffle(sampled_indices)
+
+        return (
+            self.states[sampled_indices],
+            self.actions[sampled_indices],
+            self.rewards[sampled_indices],
+            self.next_states[sampled_indices],
+            self.dones[sampled_indices],
+        )
+
+    def sample_terminal_weighted(
+        self,
+        batch_size: int,
+        arrived_fraction: float,
+        terminal_window: int,
+        rng: np.random.Generator,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Sample a mini-batch focusing on the terminal / late stages of arrived episodes.
+
+        Accelerates backward TD backup propagation by prioritizing the last N steps of
+        successful journeys (where bootstrapped Q-values are closest to the terminal reward).
+
+        Parameters:
+            batch_size: Total transitions to sample.
+            arrived_fraction: Fraction of batch drawn from late-stage arrived transitions.
+            terminal_window: Maximum steps from episode termination (e.g. 15).
+            rng: NumPy random generator instance.
+
+        Returns:
+            Tuple of (states, actions, rewards, next_states, dones).
+        """
+        if self.size < batch_size:
+            raise ValueError(
+                f"Cannot sample {batch_size} transitions from buffer of current size {self.size}"
+            )
+
+        n_arrived = int(round(batch_size * arrived_fraction))
+        n_other = batch_size - n_arrived
+
+        valid_arrived = self.arrived[: self.size]
+        valid_terminal = valid_arrived & (self.steps_from_terminal[: self.size] < terminal_window)
+
+        arrived_indices = np.where(valid_terminal)[0]
+        other_indices = np.where(~valid_arrived)[0]
+
+        # Graceful fallback: If no arrived terminal transitions exist, sample uniformly from all valid
+        if len(arrived_indices) == 0:
+            indices = rng.choice(self.size, size=batch_size, replace=False)
+            return (
+                self.states[indices],
+                self.actions[indices],
+                self.rewards[indices],
+                self.next_states[indices],
+                self.dones[indices],
+            )
+
+        # Cap n_arrived by available arrived terminal transitions
+        actual_n_arrived = min(n_arrived, len(arrived_indices))
+        actual_n_other = batch_size - actual_n_arrived
+
+        sampled_arrived = rng.choice(
+            arrived_indices,
+            size=actual_n_arrived,
+            replace=(len(arrived_indices) < actual_n_arrived),
+        )
+
+        if len(other_indices) >= actual_n_other:
+            sampled_other = rng.choice(other_indices, size=actual_n_other, replace=False)
+        else:
+            remaining_pool = np.where(~valid_terminal)[0]
+            if len(remaining_pool) >= actual_n_other:
+                sampled_other = rng.choice(remaining_pool, size=actual_n_other, replace=False)
+            else:
+                sampled_other = rng.choice(self.size, size=actual_n_other, replace=True)
 
         sampled_indices = np.concatenate([sampled_arrived, sampled_other])
         rng.shuffle(sampled_indices)

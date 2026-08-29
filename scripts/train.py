@@ -77,6 +77,7 @@ def main(
     charge_energy_on_cancelled_move: bool = True,
     gamma: float = GAMMA,
     arrived_fraction: Optional[float] = None,
+    terminal_window: Optional[int] = None,
 ) -> List[float]:
     """
     Execute the PKTD3-TD training procedure (Algorithm 1).
@@ -96,6 +97,7 @@ def main(
         charge_energy_on_cancelled_move: Whether to charge energy on cancelled boundary moves.
         gamma: Discount factor gamma for Bellman updates (default: GAMMA = 0.96).
         arrived_fraction: Optional fraction of batch to draw from arrived episodes (stratified sampling).
+        terminal_window: Optional window size in steps from episode end for arrived transitions.
 
     Returns:
         List[float]: Cumulative scalar reward achieved in each episode.
@@ -234,7 +236,9 @@ def main(
             episode_reward += reward
 
         # Backfill: Add all transitions from this episode tagged with its final arrived outcome
-        for s, a, r, ns, d in episode_transitions:
+        num_trans = len(episode_transitions)
+        for i, (s, a, r, ns, d) in enumerate(episode_transitions):
+            steps_from_terminal = num_trans - 1 - i
             replay_buffer.add(
                 state=s,
                 action=a,
@@ -242,6 +246,7 @@ def main(
                 next_state=ns,
                 done=d,
                 arrived=arrived,
+                steps_from_terminal=steps_from_terminal,
             )
             replay_experience_count += 1
 
@@ -253,6 +258,7 @@ def main(
                     batch_size,
                     rng,
                     arrived_fraction=arrived_fraction,
+                    terminal_window=terminal_window,
                 )
 
         episode_rewards.append(float(episode_reward))
@@ -383,6 +389,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Fraction of mini-batch sampled from arrived episodes (stratified replay sampling, default: None = uniform)",
     )
+    parser.add_argument(
+        "--terminal-window",
+        type=int,
+        default=None,
+        help="Maximum steps from episode end for arrived transitions (terminal-weighted replay sampling)",
+    )
     parser.add_argument("--no-progress", action="store_true", help="Disable visual tqdm progress bar")
     parser.add_argument("--resume", action="store_true", help="Resume training from latest checkpoint in checkpoint-dir")
     parser.add_argument("--resume-from", type=str, default=None, help="Explicit checkpoint file (.pt) to resume from")
@@ -407,6 +419,7 @@ if __name__ == "__main__":
         r_rand=args.r_rand,
         gamma=args.gamma,
         arrived_fraction=args.arrived_fraction,
+        terminal_window=args.terminal_window,
         use_progress_bar=not args.no_progress,
         resume=args.resume,
         resume_from=args.resume_from,

@@ -608,5 +608,56 @@ Implemented stratified replay buffer sampling to directly test whether uniform-r
    - Do NOT start a full Colab run.
    - Stratified sampling is fully implemented, verified with unit tests (`test_replay_buffer_sample_stratified`), and preserved as an optional capability via `--arrived-fraction`.
 
+### Terminal-Weighted Stratified Replay Sampling (`checkpoints/diag_terminal_weighted/`)
+Tested whether focusing arrived-transition oversampling specifically onto the **last $N$ steps of arrived episodes** (`terminal_window = 15`, where bootstrapped TD targets are uncorrupted by long-horizon decay and carry the $+20$ arrival reward) accelerates value propagation back to the initial corner decision point.
+
+#### Implementation Details:
+1. **Distance-to-Terminal Tracking:** Added `self.steps_from_terminal: np.ndarray` in `ReplayBuffer`. In `train.py`, each transition of an episode is tagged with `steps_from_terminal = len - 1 - i` (terminal transition = 0).
+2. **Terminal-Weighted Stratified Sampling (`ReplayBuffer.sample_terminal_weighted`):** Draws `arrived_fraction` (e.g. 0.3) of the mini-batch strictly from arrived transitions with `steps_from_terminal < terminal_window` (with fallback if fewer exist).
+3. **Unit Tests:** `test_steps_from_terminal_tracking` and `test_replay_buffer_sample_terminal_weighted` in `test_td3_networks.py` (both passing).
+
+#### 800-Episode Diagnostic Evaluation (`--r-rand 20000 --arrived-fraction 0.3 --terminal-window 15`, 20 Seeds, $k=10$):
+| Checkpoint | Mean Max Disp (m) | Median Disp (m) | Frac > 50m (%) | **Arrival Rate (%)** | Mean Reward |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| `td3_agent_ep200.pt` | 0.0 m | 0.0 m | 0.0% | **0.0%** | -133.43 |
+| `td3_agent_ep400.pt` | 0.0 m | 0.0 m | 0.0% | **0.0%** | -162.30 |
+| `td3_agent_ep600.pt` | 0.0 m | 0.0 m | 0.0% | **0.0%** | -179.14 |
+| `td3_agent_final.pt` (ep800) | 0.0 m | 0.0 m | 0.0% | **0.0%** | -3.63 |
+
+#### Training Replay Buffer Composition (Network Phase):
+- **Network-Phase Episodes:** 685 (eps 116–800)
+- **Arrived Network-Phase Episodes:** **0 (0.0%)**
+- **Transitions from Arrived Episodes:** **0 (0.00%)**
+- **Transitions from Non-Arrived Episodes:** **137,000 (100.00%)**
+
+#### Honest Engineering Read:
+1. **Arrival rate is STILL EXACTLY 0.0% across all checkpoints (0 arrivals out of 80 rollouts).**
+2. In fact, oversampling the final 15 steps of arrived episodes resulted in **complete 100% freezing (0.0m displacement across every seed at all checkpoints)**.
+3. Why? The final 15 steps of an arrival episode occur near $Q_{\text{END}} = (800, 800, 100)$, far away from the initial corner $Q_{\text{START}} = (0, 0, 50)$ in state space. Flooding the critic with terminal transitions gave it strong Q-values for states near $(800, 800)$, but contributed ZERO value signal to the corner state $(0, 0, 50)$, worsening the corner gradient starvation.
+
+---
+
+### Running Synthesis: Comprehensive Summary of Everything Ruled Out
+To provide a consolidated reference for the entire investigation:
+1. **Energy Formula Singularity:** Ruled out. Zero-speed division in earlier drafts was resolved with smooth aerodynamic drag ($P(0) \approx 124\text{ W}$).
+2. **State Normalization:** Ruled out. Checked state tensor bounds; values are within $[0, 1]$ or normalized spatial scales.
+3. **Action Space & Clipping:** Ruled out. Tanh scaling maps $[-1, 1]^3$ to physical speed $[0, 20]\text{ m/s}$, pitch $[-30^\circ, 30^\circ]$, and yaw $[-180^\circ, 180^\circ]$ correctly.
+4. **Channel Calibration & Reward Margin:** Ruled out as the sole cause. Recalibrated carrier frequency to 2.4 GHz ISM band ($N_0 = -174\text{ dBm/Hz}$), widening TDPK-over-hover reward margin from 1.59x to 2.65x (+165%). Partial flight scores 7x better than hovering. Yet 0% arrival persisted.
+5. **Discount Factor Horizon ($\gamma = 0.99$ Ablation):** Ruled out as the sole cause. Increasing effective horizon from 25 steps to 100 steps expanded forward exploration (mean displacement from 51m to 140m), but arrival rate remained 0.0%.
+6. **Replay Buffer Overwrite / Purging:** Ruled out as the original trigger. Purging evicts PK data around ep600 ($>120\text{k}$ transitions), but 0% arrival already occurs at `ep200.pt` (at $37\text{k}$ transitions), before any eviction has occurred.
+7. **Prior-Knowledge Data Volume ($R_{\text{rand}} = 60,000$ Ablation):** Ruled out. Tripled PK demonstrations (343 arrival episodes, 60,000 transitions); the policy still collapsed immediately at handoff (0/457 network arrivals, 0% deterministic arrivals).
+8. **Flat Stratified Sampling (30% Arrived Oversampling):** Ruled out. Guaranteed 38 arrival transitions in every 128-sample mini-batch; actor still collapsed to 0.0m displacement at `ep200.pt`.
+9. **Terminal-Weighted Stratified Sampling (Last 15 Steps Oversampling):** Ruled out. Produced complete 0.0m paralysis across all checkpoints.
+
+#### Next Diagnostic Step: Direct Inspection (No New Speculative Training)
+Stop guessing structural training changes. Directly inspect the actor and critic at $Q_{\text{START}} = (0, 0, 50)$ across checkpoints:
+- Print raw actor action $\mu(s_{\text{start}})$.
+- Evaluate critic Q-values $Q(s_{\text{start}}, a)$ for hand-picked actions:
+  - Action A: Prior-knowledge heading toward $Q_{\text{END}}$ ($v=20, \psi=+45^\circ, \theta=0^\circ$).
+  - Action B: Zero velocity ($v=0$).
+  - Action C: Out-of-bounds negative step ($v=20, \psi=-135^\circ$).
+  - Action D: Actor's chosen action.
+See exactly what the critic believes and why the actor gradient selects the corner trap.
+
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
