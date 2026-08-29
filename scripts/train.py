@@ -76,6 +76,7 @@ def main(
     resume_from: Optional[str] = None,
     charge_energy_on_cancelled_move: bool = True,
     gamma: float = GAMMA,
+    arrived_fraction: Optional[float] = None,
 ) -> List[float]:
     """
     Execute the PKTD3-TD training procedure (Algorithm 1).
@@ -94,6 +95,7 @@ def main(
         resume_from: Explicit path to a checkpoint file (.pt) to resume training from.
         charge_energy_on_cancelled_move: Whether to charge energy on cancelled boundary moves.
         gamma: Discount factor gamma for Bellman updates (default: GAMMA = 0.96).
+        arrived_fraction: Optional fraction of batch to draw from arrived episodes (stratified sampling).
 
     Returns:
         List[float]: Cumulative scalar reward achieved in each episode.
@@ -203,6 +205,7 @@ def main(
         step_count = 0
         arrived = False
         done = False
+        episode_transitions = []
 
         while not done:
             # Action selection (eq. 31 via M6's dispatcher):
@@ -220,22 +223,37 @@ def main(
                 arrived = True
 
             normalized_action = normalize_action(action)
+            episode_transitions.append((
+                state,
+                np.array(normalized_action, dtype=np.float32),
+                reward,
+                next_state,
+                done,
+            ))
+            state = next_state
+            episode_reward += reward
+
+        # Backfill: Add all transitions from this episode tagged with its final arrived outcome
+        for s, a, r, ns, d in episode_transitions:
             replay_buffer.add(
-                state=state,
-                action=np.array(normalized_action, dtype=np.float32),
-                reward=reward,
-                next_state=next_state,
-                done=done,
+                state=s,
+                action=a,
+                reward=r,
+                next_state=ns,
+                done=d,
+                arrived=arrived,
             )
             replay_experience_count += 1
 
             # Training trigger (Algorithm 1, Line 17):
             # Perform gradient descent only after R_ex > R_rand AND enough samples exist for a batch.
             if replay_experience_count > r_rand and len(replay_buffer) >= batch_size:
-                agent.train_step(replay_buffer, batch_size, rng)
-
-            state = next_state
-            episode_reward += reward
+                agent.train_step(
+                    replay_buffer,
+                    batch_size,
+                    rng,
+                    arrived_fraction=arrived_fraction,
+                )
 
         episode_rewards.append(float(episode_reward))
         episode_stats.append({
@@ -359,6 +377,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--log-every", type=int, default=10, help="Logging interval in episodes")
     parser.add_argument("--r-rand", type=int, default=R_RAND, help="Prior knowledge exploration threshold R_rand")
     parser.add_argument("--gamma", type=float, default=GAMMA, help="Discount factor gamma for Bellman updates (default: 0.96)")
+    parser.add_argument(
+        "--arrived-fraction",
+        type=float,
+        default=None,
+        help="Fraction of mini-batch sampled from arrived episodes (stratified replay sampling, default: None = uniform)",
+    )
     parser.add_argument("--no-progress", action="store_true", help="Disable visual tqdm progress bar")
     parser.add_argument("--resume", action="store_true", help="Resume training from latest checkpoint in checkpoint-dir")
     parser.add_argument("--resume-from", type=str, default=None, help="Explicit checkpoint file (.pt) to resume from")
@@ -382,6 +406,7 @@ if __name__ == "__main__":
         log_every=args.log_every,
         r_rand=args.r_rand,
         gamma=args.gamma,
+        arrived_fraction=args.arrived_fraction,
         use_progress_bar=not args.no_progress,
         resume=args.resume,
         resume_from=args.resume_from,

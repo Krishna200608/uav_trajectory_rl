@@ -164,3 +164,106 @@ def test_to_torch_batch():
     assert t1.device.type == "cpu"
     assert np.allclose(t1.numpy(), arr1)
     assert np.allclose(t2.numpy(), arr2)
+
+
+def test_replay_buffer_sample_stratified():
+    """
+    Test that sample_stratified draws the exact target fraction of arrived transitions.
+    """
+    capacity = 20
+    state_dim = 3
+    action_dim = 2
+    buf = ReplayBuffer(state_dim=state_dim, action_dim=action_dim, capacity=capacity)
+    rng = np.random.default_rng(123)
+
+    # Add 4 arrived transitions (marked by reward >= 1000.0)
+    for i in range(4):
+        buf.add(
+            state=np.full(state_dim, float(i), dtype=np.float32),
+            action=np.full(action_dim, 1.0, dtype=np.float32),
+            reward=1000.0 + float(i),
+            next_state=np.full(state_dim, float(i + 1), dtype=np.float32),
+            done=True,
+            arrived=True,
+        )
+
+    # Add 16 non-arrived transitions (marked by reward < 100.0)
+    for i in range(16):
+        buf.add(
+            state=np.full(state_dim, float(i), dtype=np.float32),
+            action=np.full(action_dim, -1.0, dtype=np.float32),
+            reward=float(i),
+            next_state=np.full(state_dim, float(i + 1), dtype=np.float32),
+            done=False,
+            arrived=False,
+        )
+
+    assert len(buf) == 20
+
+    # Sample batch of 8 with arrived_fraction=0.5 -> expect exactly 4 arrived transitions
+    batch_size = 8
+    states, actions, rewards, next_states, dones = buf.sample_stratified(
+        batch_size=batch_size,
+        arrived_fraction=0.5,
+        rng=rng,
+    )
+
+    assert states.shape == (batch_size, state_dim)
+    assert actions.shape == (batch_size, action_dim)
+    assert rewards.shape == (batch_size, 1)
+
+    arrived_count = int(np.sum(rewards >= 1000.0))
+    non_arrived_count = int(np.sum(rewards < 100.0))
+    assert arrived_count == 4, f"Expected 4 arrived transitions, got {arrived_count}"
+    assert non_arrived_count == 4, f"Expected 4 non-arrived transitions, got {non_arrived_count}"
+
+
+def test_replay_buffer_sample_stratified_fallback():
+    """
+    Test graceful fallback when buffer has fewer arrived transitions than requested,
+    or when zero arrived transitions exist in the buffer.
+    """
+    capacity = 10
+    state_dim = 2
+    action_dim = 2
+    buf = ReplayBuffer(state_dim=state_dim, action_dim=action_dim, capacity=capacity)
+    rng = np.random.default_rng(456)
+
+    # Case A: 0 arrived transitions in buffer
+    for i in range(8):
+        buf.add(
+            state=np.zeros(state_dim, dtype=np.float32),
+            action=np.zeros(action_dim, dtype=np.float32),
+            reward=float(i),
+            next_state=np.zeros(state_dim, dtype=np.float32),
+            done=False,
+            arrived=False,
+        )
+
+    # Request 50% arrived when 0 exist -> should fall back to all available without error
+    states, actions, rewards, next_states, dones = buf.sample_stratified(
+        batch_size=4,
+        arrived_fraction=0.5,
+        rng=rng,
+    )
+    assert states.shape == (4, state_dim)
+    assert np.all(rewards < 100.0)
+
+    # Case B: Only 1 arrived transition exists, but batch requests 3 (round(4 * 0.75))
+    buf.add(
+        state=np.ones(state_dim, dtype=np.float32),
+        action=np.ones(action_dim, dtype=np.float32),
+        reward=999.0,
+        next_state=np.ones(state_dim, dtype=np.float32),
+        done=True,
+        arrived=True,
+    )
+    states, actions, rewards, next_states, dones = buf.sample_stratified(
+        batch_size=4,
+        arrived_fraction=0.75,
+        rng=rng,
+    )
+    assert states.shape == (4, state_dim)
+    # The 1 arrived transition should be included, rest filled from non-arrived
+    assert np.sum(rewards == 999.0) >= 1
+

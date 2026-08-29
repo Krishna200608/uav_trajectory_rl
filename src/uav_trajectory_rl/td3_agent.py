@@ -172,6 +172,7 @@ class TD3Agent:
         replay_buffer: ReplayBuffer,
         batch_size: int,
         rng: np.random.Generator,
+        arrived_fraction: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Execute one training step of the TD3 algorithm (Algorithm 1, Lines 17-27).
@@ -183,6 +184,9 @@ class TD3Agent:
             replay_buffer: Experience replay buffer storing transition tuples.
             batch_size: Mini-batch size.
             rng: NumPy random generator instance.
+            arrived_fraction: Optional float (e.g. 0.3) for stratified replay sampling.
+                When provided, guarantees the specified fraction of the batch is drawn
+                from arrived episodes to prevent majority-failure dilution.
 
         Returns:
             dict: Diagnostics dictionary containing:
@@ -191,7 +195,15 @@ class TD3Agent:
                 - "total_updates": Total number of critic gradient updates performed.
         """
         # 1. Sample mini-batch and convert to torch tensors on self.device
-        states, actions, rewards, next_states, dones = replay_buffer.sample(batch_size, rng)
+        if arrived_fraction is not None and arrived_fraction > 0.0:
+            states, actions, rewards, next_states, dones = replay_buffer.sample_stratified(
+                batch_size=batch_size,
+                arrived_fraction=arrived_fraction,
+                rng=rng,
+            )
+        else:
+            states, actions, rewards, next_states, dones = replay_buffer.sample(batch_size, rng)
+
         states, actions, rewards, next_states, dones = to_torch_batch(
             states, actions, rewards, next_states, dones, device=self.device
         )

@@ -234,6 +234,7 @@ class ReplayBuffer:
         self.rewards: np.ndarray = np.zeros((capacity, 1), dtype=np.float32)
         self.next_states: np.ndarray = np.zeros((capacity, state_dim), dtype=np.float32)
         self.dones: np.ndarray = np.zeros((capacity, 1), dtype=np.float32)
+        self.arrived: np.ndarray = np.zeros((capacity,), dtype=bool)
 
         self.ptr: int = 0
         self.size: int = 0
@@ -245,6 +246,7 @@ class ReplayBuffer:
         reward: float,
         next_state: np.ndarray,
         done: bool,
+        arrived: bool = False,
     ) -> None:
         """
         Store a new transition tuple into the circular buffer.
@@ -255,12 +257,14 @@ class ReplayBuffer:
             reward: Scalar reward received.
             next_state: Next state vector observed.
             done: Terminal flag (True if episode ended).
+            arrived: Whether the transition belonged to an episode that reached Q_END.
         """
         self.states[self.ptr] = state
         self.actions[self.ptr] = action
         self.rewards[self.ptr] = float(reward)
         self.next_states[self.ptr] = next_state
         self.dones[self.ptr] = float(done)
+        self.arrived[self.ptr] = bool(arrived)
 
         self.ptr = (self.ptr + 1) % self.capacity
         self.size = min(self.size + 1, self.capacity)
@@ -293,6 +297,77 @@ class ReplayBuffer:
             self.rewards[indices],
             self.next_states[indices],
             self.dones[indices],
+        )
+
+    def sample_stratified(
+        self,
+        batch_size: int,
+        arrived_fraction: float,
+        rng: np.random.Generator,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Sample a mini-batch with a guaranteed fraction of transitions from arrived episodes.
+
+        Addresses majority-failure dilution by ensuring that positive arrival transitions
+        (which are shorter and rarer) are consistently represented in the TD3 training batch.
+
+        Parameters:
+            batch_size: Total transitions to sample.
+            arrived_fraction: Desired fraction of batch drawn from arrived episodes (e.g. 0.3).
+            rng: NumPy random generator instance.
+
+        Returns:
+            Tuple of (states, actions, rewards, next_states, dones).
+        """
+        if self.size < batch_size:
+            raise ValueError(
+                f"Cannot sample {batch_size} transitions from buffer of current size {self.size}"
+            )
+
+        n_arrived = int(round(batch_size * arrived_fraction))
+        n_other = batch_size - n_arrived
+
+        valid_arrived = self.arrived[: self.size]
+        arrived_indices = np.where(valid_arrived)[0]
+        other_indices = np.where(~valid_arrived)[0]
+
+        # Graceful fallback: If no arrived transitions exist in buffer, sample uniformly
+        if len(arrived_indices) == 0:
+            indices = rng.choice(self.size, size=batch_size, replace=False)
+            return (
+                self.states[indices],
+                self.actions[indices],
+                self.rewards[indices],
+                self.next_states[indices],
+                self.dones[indices],
+            )
+
+        # Cap n_arrived by available arrived transitions
+        actual_n_arrived = min(n_arrived, len(arrived_indices))
+        actual_n_other = batch_size - actual_n_arrived
+
+        # Sample arrived indices
+        sampled_arrived = rng.choice(
+            arrived_indices,
+            size=actual_n_arrived,
+            replace=(len(arrived_indices) < actual_n_arrived),
+        )
+
+        # Sample remaining indices from other (or all available if other is too small)
+        if len(other_indices) >= actual_n_other:
+            sampled_other = rng.choice(other_indices, size=actual_n_other, replace=False)
+        else:
+            sampled_other = rng.choice(self.size, size=actual_n_other, replace=True)
+
+        sampled_indices = np.concatenate([sampled_arrived, sampled_other])
+        rng.shuffle(sampled_indices)
+
+        return (
+            self.states[sampled_indices],
+            self.actions[sampled_indices],
+            self.rewards[sampled_indices],
+            self.next_states[sampled_indices],
+            self.dones[sampled_indices],
         )
 
     def __len__(self) -> int:

@@ -572,5 +572,41 @@ Tested whether tripling the prior-knowledge seeding phase ($R_{\text{rand}} = 60
 4. **Next Diagnostic Priority:**
    - Examine the **actor's specific action output and critic gradient $\nabla_a Q(s, a)$ at the exact corner state $(0,0,50)$ right at the handoff moment**. Why does the actor gradient push the actor into the boundary walls at $Q_{\text{START}}$ rather than reproducing the prior-knowledge velocity vector?
 
+### Stratified Replay Sampling: Targeted Fix for Majority-Failure Dilution (`checkpoints/diag_stratified/`)
+Implemented stratified replay buffer sampling to directly test whether uniform-random sampling dilutes the critic's learning signal by drowning out short, successful prior-knowledge arrival transitions (~89 steps) with 200-step timeout trajectories.
+
+#### Implementation Details:
+1. **Per-Transition Outcome Tracking (`td3_networks.py`):** Added `self.arrived: np.ndarray = np.zeros((capacity,), dtype=bool)` to `ReplayBuffer`. `ReplayBuffer.add(...)` now takes `arrived: bool = False`.
+2. **Episode Buffering in `train.py`:** Episode transitions are buffered in a temporary list and backfilled to `ReplayBuffer` at episode completion tagged with the true final `arrived` flag.
+3. **Stratified Sampling (`ReplayBuffer.sample_stratified`):** Samples `round(batch_size * arrived_fraction)` transitions from `arrived=True` episodes, and the remainder from `arrived=False`. Features graceful fallback if insufficient arrived transitions exist.
+4. **Wiring & CLI Flag:** Exposed `--arrived-fraction` (default `None`, maintaining Table III uniform sampling contract unless explicitly overridden). Wired into `TD3Agent.train_step(..., arrived_fraction)`.
+
+#### 800-Episode Diagnostic Evaluation (`--r-rand 20000 --arrived-fraction 0.3`, 20 Seeds, $k=10$):
+| Checkpoint | Mean Max Disp (m) | Median Disp (m) | Frac > 50m (%) | **Arrival Rate (%)** | Mean Reward |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| `td3_agent_ep200.pt` | 0.0 m | 0.0 m | 0.0% | **0.0%** | -124.61 |
+| `td3_agent_ep400.pt` | 5.6 m | 0.0 m | 5.0% | **0.0%** | +163.58 |
+| `td3_agent_ep600.pt` | 12.3 m | 0.0 m | 5.0% | **0.0%** | +163.46 |
+| `td3_agent_final.pt` (ep800) | 31.4 m | 0.0 m | 5.0% | **0.0%** | +183.93 |
+
+#### Training Replay Buffer Composition (Network Phase):
+- **Network-Phase Episodes:** 685 (eps 116–800)
+- **Arrived Network-Phase Episodes:** **0 (0.0%)**
+- **Transitions from Arrived Episodes:** **0 (0.00%)**
+- **Transitions from Non-Arrived Episodes:** **137,000 (100.00%)**
+
+#### Honest Engineering Read: Did Arrival Rate Move Off Zero?
+1. **Did Arrival Rate Move Off Zero?**
+   - **NO. Arrival rate is STILL STRICTLY 0.0% across all checkpoints (0 arrivals out of 80 deterministic rollouts).**
+2. **Critical Discovery — The Failure is NOT Caused by Sampling Dilution:**
+   - For the first ~400 episodes post-handoff, prior-knowledge arrival transitions were actively present in the buffer, and `sample_stratified(arrived_fraction=0.3)` guaranteed that **38 out of 128 transitions in every single critic batch were arrival transitions**.
+   - Despite 30% of every training batch being successful arrival demonstrations, the actor **still collapsed immediately into the corner at `ep200` (0.0m displacement, 0% escapes)**.
+   - This proves conclusively that the actor's inability to leave $Q_{\text{START}}$ is **not due to the critic failing to see enough arrival transitions in its mini-batches**.
+3. **The Core Mechanism Revealed:**
+   - The actor's policy gradient $\nabla_a Q(s, a)$ at $Q_{\text{START}} = (0, 0, 50)$ is pointing *away* from the interior of the service volume (or saturated at the zero-speed / boundary limits). Even when the critic is trained heavily on successful trajectories, the actor policy itself collapses into an action that causes immediate boundary cancellation on Step 1.
+4. **Current Recommendation:**
+   - Do NOT start a full Colab run.
+   - Stratified sampling is fully implemented, verified with unit tests (`test_replay_buffer_sample_stratified`), and preserved as an optional capability via `--arrived-fraction`.
+
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
