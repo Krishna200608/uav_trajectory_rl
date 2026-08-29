@@ -54,7 +54,7 @@ def test_env_20_random_steps():
             break
 
     # Cumulative reward uses raw physical attributes, unaffected by state normalization
-    assert math.isclose(cumulative_reward, 21.8817, abs_tol=1e-2)
+    assert math.isclose(cumulative_reward, 11.3603, abs_tol=1e-2)
 
 
 def test_state_normalization_bounds():

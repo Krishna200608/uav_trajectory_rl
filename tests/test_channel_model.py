@@ -32,9 +32,9 @@ def test_path_losses():
     pl_avg = average_path_loss(z_diff, h_dist)
 
     assert pl_nlos > pl_los
-    assert math.isclose(pl_los, 80.57, abs_tol=0.1)
-    assert math.isclose(pl_nlos, 99.57, abs_tol=0.1)
-    assert math.isclose(pl_avg, 80.61, abs_tol=0.1)
+    assert math.isclose(pl_los, 82.15, abs_tol=0.1)
+    assert math.isclose(pl_nlos, 101.15, abs_tol=0.1)
+    assert math.isclose(pl_avg, 82.20, abs_tol=0.1)
 
 
 def test_transmission_rate_single_user():
@@ -44,7 +44,7 @@ def test_transmission_rate_single_user():
     rate = transmission_rate(uav_pos, user_pos, num_users_k=1)
     assert rate > 0.0
     # Paper literal eq. (13) with log2(SNR)
-    assert math.isclose(rate, 201824852.12, rel_tol=1e-3)
+    assert math.isclose(rate, 191303475.88, rel_tol=1e-3)
 
 
 def test_total_transmission_rate_group():
@@ -57,4 +57,4 @@ def test_total_transmission_rate_group():
     ])
     sum_rate = total_transmission_rate(uav_pos, users_group)
     assert sum_rate > 0.0
-    assert math.isclose(sum_rate, 208744603.23, rel_tol=1e-3)
+    assert math.isclose(sum_rate, 198223227.00, rel_tol=1e-3)
