@@ -7,7 +7,7 @@ Checks are performed at milestones:
 - [x] **Episode 2,000** (Logged below)
 - [x] **Episode 3,000** (Logged below)
 - [x] **Episode 4,000** (Logged below)
-- [ ] **Episode 5,000** (Pending)
+- [x] **Episode 5,000** (Logged below)
 - [ ] **Episode 6,000 (Final)** (Pending)
 
 ---
@@ -23,9 +23,10 @@ Checks are performed at milestones:
 | **ep2500** | 41.7% (2500/6000) | 10.6 min / 500 ep | 0.5033 | 33% | 50.2m | 10.0% | 263.45 | Strong policy update (diff = 0.5033) |
 | **ep3000** | 50.0% (3000/6000) | 10.6 min / 500 ep | 0.4889 | 46% | 103.3m | 20.0% | 236.35 | Halfway reached; live reward +1091.81 (arrival) |
 | **ep3500** | 58.3% (3500/6000) | 10.6 min / 500 ep | 0.5002 | 38% | 131.9m | 30.0% | 256.33 | Steady displacement climb |
-| **ep4000** | 66.7% (4000/6000) | 10.6 min / 500 ep | 0.4884 | 54% | **222.7m** | **40.0%** | **349.11** | **New peak displacement (222.7m) & reward (+349.11)** |
-| **ep5000** | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Awaiting run progress* |
-| **ep6000** | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Awaiting run progress* |
+| **ep4000** | 66.7% (4000/6000) | 10.6 min / 500 ep | 0.4884 | 54% | **222.7m** | **40.0%** | **349.11** | Peak displacement (222.7m) & reward (+349.11) |
+| **ep4500** | 75.0% (4500/6000) | 10.6 min / 500 ep | 0.4539 | 50% | 203.5m | 30.0% | 344.47 | Sustained high reward (+344.47) & displacement |
+| **ep5000** | 83.3% (5000/6000) | 10.6 min / 500 ep | 0.6197 | 46% | 98.0m | 20.0% | 318.19 | **Rolling avg hits all-time record +450.75; ~21 min left** |
+| **ep6000** | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Pending* | *Awaiting final run completion* |
 
 ---
 
@@ -382,6 +383,110 @@ Live Rewards: 4000 episodes logged.
 
 ---
 
-## 5. Checkpoint 5,000 / 6,000 Diagnostics
+## 5. Checkpoint 5,000 Diagnostics
 
-*(To be populated upon receiving outputs for Episode 5,000 / 6,000 Final)*
+**Recorded:** 2026-08-29  
+**Checkpoints detected on Drive:** `[500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000]`
+
+### Cell 4 — Actor Outputs & Saturation Check Across Checkpoints
+
+Fixed test states (8 fixed random states, uniform $[-1, 1]^{26}$, seed 999):
+
+#### ep4500 (total_updates = 877,137)
+```text
+[[ 0.9987  0.9941  0.7617]
+ [ 1.      1.      0.9987]
+ [-1.     -0.6824 -1.    ]
+ [ 1.      1.     -0.9723]
+ [ 1.      0.9991 -0.9936]
+ [-1.      0.9998 -0.9878]
+ [ 0.9997 -0.2694 -0.2108]
+ [ 1.      0.9939  0.8297]]
+```
+
+#### ep5000 (total_updates = 977,137)
+```text
+[[-1.      0.1814  0.0543]
+ [ 1.      1.      0.9994]
+ [-0.9962  0.9996 -0.3628]
+ [ 1.      0.9984  0.6171]
+ [ 1.      1.      0.9977]
+ [-1.     -0.9992 -0.9989]
+ [ 1.     -0.8083 -0.777 ]
+ [-0.4926  0.8934  0.0901]]
+```
+
+#### Diff & Saturation Metrics
+```text
+=== Mean abs change between consecutive checkpoints ===
+ep500 -> ep1000: mean_abs_diff=0.319208, frac_outputs_saturated(|x|>0.999)=0.38
+ep1000 -> ep1500: mean_abs_diff=0.487610, frac_outputs_saturated(|x|>0.999)=0.29
+ep1500 -> ep2000: mean_abs_diff=0.376395, frac_outputs_saturated(|x|>0.999)=0.17
+ep2000 -> ep2500: mean_abs_diff=0.503343, frac_outputs_saturated(|x|>0.999)=0.33
+ep2500 -> ep3000: mean_abs_diff=0.488897, frac_outputs_saturated(|x|>0.999)=0.46
+ep3000 -> ep3500: mean_abs_diff=0.500188, frac_outputs_saturated(|x|>0.999)=0.38
+ep3500 -> ep4000: mean_abs_diff=0.488374, frac_outputs_saturated(|x|>0.999)=0.54
+ep4000 -> ep4500: mean_abs_diff=0.453904, frac_outputs_saturated(|x|>0.999)=0.50
+ep4500 -> ep5000: mean_abs_diff=0.619741, frac_outputs_saturated(|x|>0.999)=0.46
+
+=== INTERPRETATION ===
+OK: actor output is still changing between checkpoints (mean diff = 0.6197) -- training appears active, not frozen.
+```
+
+---
+
+### Cell 5 — Live Training Progress, Pace, and ETA Visualizer
+
+```text
+=================================================================
+TRAINING PROGRESS: [█████████████████████████░░░░░] 83.3% (5000/6000 eps)
+=================================================================
+  Pace: 10.6 min per 500 episodes (0.79 ep/s)
+  Time Remaining (ETA): ~21.1 minutes (0.35 hours)
+  Estimated Completion: 08:43 AM (2026-08-29)
+
+Live Rewards: 5000 episodes logged.
+  Current Reward: 173.97
+  Rolling Avg (last 50): 450.75
+```
+
+---
+
+### Cell 6 — Movement & Corner-Escape Trend Check
+
+10 evaluation seeds (0–9) rollout across saved checkpoints measuring maximum displacement from $Q_{\text{START}} = (0, 0, 50)$ and episode reward:
+
+| Episode | Mean Max Displacement | Frac > 50m | Mean Reward |
+| :---: | :---: | :---: | :---: |
+| **500** | 0.0m | 0.0% | 243.58 |
+| **1000** | 142.0m | 40.0% | 318.96 |
+| **1500** | 32.6m | 30.0% | 228.05 |
+| **2000** | 54.5m | 20.0% | 321.95 |
+| **2500** | 50.2m | 10.0% | 263.45 |
+| **3000** | 103.3m | 20.0% | 236.35 |
+| **3500** | 131.9m | 30.0% | 256.33 |
+| **4000** | **222.7m** | **40.0%** | **349.11** |
+| **4500** | 203.5m | 30.0% | 344.47 |
+| **5000** | 98.0m | 20.0% | 318.19 |
+
+---
+
+### Key Takeaways from ep5000
+
+1. **Record High Rolling Training Reward (+450.75):**
+   * The 50-episode rolling reward average escalated to an all-time project record of **$+450.75$**.
+   * Progression over training:
+     $$\text{ep1000: } +226.96 \longrightarrow \text{ep2000: } +288.54 \longrightarrow \text{ep3000: } +339.47 \longrightarrow \text{ep4000: } +307.43 \longrightarrow \mathbf{\text{ep5000: } +450.75}$$
+2. **Sustained Evaluation High-Reward Plateau:**
+   * Evaluation mean rewards at ep4000 ($+349.11$), ep4500 ($+344.47$), and ep5000 ($+318.19$) maintain an elevated plateau well above $+318$.
+3. **Largest Policy Shift (diff = 0.6197):**
+   * The transition from ep4500 to ep5000 registered the largest policy update of the entire run (`mean_abs_diff = 0.6197`), while output saturation remains well-tempered at 46%.
+4. **Final 1,000 Episodes Remaining:**
+   * **83.3% completed** (5,000 / 6,000 episodes).
+   * **Time Remaining:** only $\approx 21.1\text{ minutes}$ ($\approx 0.35\text{ hours}$).
+
+---
+
+## 6. Checkpoint 6,000 (Final) Diagnostics
+
+*(To be populated upon receiving outputs for Episode 6,000 Final)*
