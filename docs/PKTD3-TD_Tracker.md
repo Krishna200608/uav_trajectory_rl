@@ -486,5 +486,50 @@ Evaluated all checkpoints (`ep200`, `ep400`, `ep600`, `final`) across 20 seeds (
    - Channel recalibration successfully widened the theoretical and empirical TDPK-vs-Hover margin (2.65x), but the policy navigation/credit assignment deficit is NOT solved by channel parameter changes alone.
    - Do NOT start a full 6,000-episode Colab run yet. Further diagnosis of the actor gradient / action-space boundary behavior is required.
 
+### Effective-Horizon (Gamma Ablation) & Replay-Buffer Imbalance Diagnostics (`checkpoints/diag_gamma099/`)
+Investigated two targeted hypotheses for why the deterministic actor policy fails to consolidate goal arrival:
+1. **Replay-Buffer Composition Imbalance:** Once heuristic guidance ends ($R_{\text{ex}} > R_{\text{rand}}$), do non-arrived timeout episodes drown out arrival transitions in the replay buffer?
+2. **Effective Horizon Shortfall:** Does Table III's discount factor $\gamma = 0.96$ (effective horizon $1/(1 - \gamma) = 25$ steps) decay Bellman credit too aggressively across an 89-step journey ($\gamma^{89} \approx 0.026$)?
+
+#### Step 1: Measured Replay Buffer Composition (Direct Measurement)
+Instrumented `scripts/train.py` to record episode steps, arrival flags, and phase switches:
+- **Total Network-Phase Episodes ($R_{\text{ex}} > 20,000$):** **685 episodes** (episodes 116–800)
+- **Arrived Network-Phase Episodes:** **0 (0.0%)**
+- **Mean Steps (Arrived Network Episodes):** **0.0**
+- **Mean Steps (Non-Arrived Network Episodes):** **200.0 steps**
+- **Total Transitions Added During Network Phase:** **137,000**
+  - **From Arrived Episodes:** **0 (0.00%)**
+  - **From Non-Arrived Episodes:** **137,000 (100.00%)**
+
+> [!CRITICAL]
+> **Severe Replay-Buffer Starvation Discovered:**
+> Every single one of the 685 network-phase episodes timed out at 200 steps without arriving.
+> Because `REPLAY_SIZE = 100,000`, the circular buffer completely overwrote and discarded all initial prior-knowledge arrival transitions by step 120,000 (~episode 600).
+> **From episode 600 onwards, the replay buffer contained literally 0 arrival transitions.** The TD3 critic was computing Bellman updates exclusively on non-arrival data.
+
+#### Step 2: Diagnostic Ablation — Higher Horizon ($\gamma = 0.99$)
+Executed `scripts/train.py --episodes 800 --seed 0 --gamma 0.99 --checkpoint-dir checkpoints/diag_gamma099 --checkpoint-every 200` (CLI override wired to `TD3Agent`, keeping `config.GAMMA = 0.96` default intact).
+Evaluated all checkpoints across 20 deterministic seeds (0–19, $k=10$) side-by-side with $\gamma = 0.96$:
+
+| Checkpoint | Metric | $\gamma = 0.96$ (Table III Default) | $\gamma = 0.99$ (Horizon Ablation) | Effect of Longer Horizon |
+| :---: | :---: | :---: | :---: | :--- |
+| **`td3_agent_ep200.pt`** | Mean Max Disp<br>Median Disp<br>Frac > 50m<br>Arrival Rate<br>Mean Reward | 1.0 m<br>0.0 m<br>0.0%<br>**0.0%**<br>+135.87 | 17.0 m<br>0.0 m<br>5.0%<br>**0.0%**<br>+162.29 | Immediate mobility increase at ep200 |
+| **`td3_agent_ep400.pt`** | Mean Max Disp<br>Median Disp<br>Frac > 50m<br>Arrival Rate<br>Mean Reward | 51.1 m<br>0.0 m<br>10.0%<br>**0.0%**<br>+190.27 | **140.0 m**<br>0.0 m<br>**25.0%**<br>**0.0%**<br>**+246.83** | **$2.7\times$ higher displacement, $2.5\times$ more escapes, $+30\%$ reward** |
+| **`td3_agent_ep600.pt`** | Mean Max Disp<br>Median Disp<br>Frac > 50m<br>Arrival Rate<br>Mean Reward | 18.5 m<br>0.0 m<br>5.0%<br>**0.0%**<br>+90.81 | 75.1 m<br>0.0 m<br>20.0%<br>**0.0%**<br>+136.47 | $4\times$ higher displacement sustained |
+| **`td3_agent_final.pt` (ep800)**| Mean Max Disp<br>Median Disp<br>Frac > 50m<br>Arrival Rate<br>Mean Reward | 26.1 m<br>0.0 m<br>5.0%<br>**0.0%**<br>+125.11 | 75.1 m<br>0.0 m<br>20.0%<br>**0.0%**<br>+148.44 | $3\times$ higher displacement sustained |
+
+#### Step 3: Synthesis & Honest Engineering Read
+1. **Did Arrival Rate Move Off Zero?**
+   - **NO. Arrival rate remains strictly 0.0% across all checkpoints for both $\gamma = 0.96$ and $\gamma = 0.99$.**
+2. **Strong Evidence Supporting the Horizon Hypothesis:**
+   - Increasing $\gamma$ from 0.96 to 0.99 dramatically improved forward flight: peak mean displacement jumped from $51.1\text{ m}$ to **$140.0\text{ m}$**, and corner escape rate ($>50\text{ m}$) jumped from $10\%$ to **$25\%$**.
+   - This proves that a longer effective horizon allows the actor to learn sustained flight deeper into the service volume.
+3. **Why $\gamma = 0.99$ Still Failed to Achieve Arrivals:**
+   - The buffer composition numbers explain why: because zero network-phase episodes arrived, the replay buffer suffered complete arrival starvation once circular overwrite purged the first 20,000 steps.
+   - With 0% arrival transitions in the buffer, no value of $\gamma$ can propagate an arrival signal that does not exist in the training data.
+4. **Current Recommendation:**
+   - Do NOT start a full Colab run yet.
+   - The root pathology is now isolated: (1) the hard cutoff at $R_{\text{rand}} = 20,000$ leaves the actor with zero ongoing arrival demonstrations, and (2) standard circular buffer overwrite purges all positive arrival transitions.
+
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*

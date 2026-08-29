@@ -46,6 +46,7 @@ import torch
 
 from uav_trajectory_rl.config import (
     BATCH_SIZE,
+    GAMMA,
     M_EPISODES,
     REPLAY_SIZE,
     R_RAND,
@@ -74,6 +75,7 @@ def main(
     resume: bool = False,
     resume_from: Optional[str] = None,
     charge_energy_on_cancelled_move: bool = True,
+    gamma: float = GAMMA,
 ) -> List[float]:
     """
     Execute the PKTD3-TD training procedure (Algorithm 1).
@@ -91,6 +93,7 @@ def main(
         resume: Whether to automatically resume from the latest checkpoint in checkpoint_dir.
         resume_from: Explicit path to a checkpoint file (.pt) to resume training from.
         charge_energy_on_cancelled_move: Whether to charge energy on cancelled boundary moves.
+        gamma: Discount factor gamma for Bellman updates (default: GAMMA = 0.96).
 
     Returns:
         List[float]: Cumulative scalar reward achieved in each episode.
@@ -104,11 +107,12 @@ def main(
         charge_energy_on_cancelled_move=charge_energy_on_cancelled_move,
     )
     state_dim = env.state_dim
-    agent = TD3Agent(state_dim=state_dim)
+    agent = TD3Agent(state_dim=state_dim, gamma=gamma)
     replay_buffer = ReplayBuffer(state_dim=state_dim, action_dim=3, capacity=REPLAY_SIZE)
 
     os.makedirs(checkpoint_dir, exist_ok=True)
     episode_rewards: List[float] = []
+    episode_stats: List[dict] = []
 
     # ==========================================================================
     # IMPORTANT DESIGN NOTE ON R_ex (replay_experience_count):
@@ -193,8 +197,11 @@ def main(
         ep_iterator = pbar
 
     for episode in ep_iterator:
+        is_network_phase = (replay_experience_count > r_rand)
         state = env.reset()
         episode_reward = 0.0
+        step_count = 0
+        arrived = False
         done = False
 
         while not done:
@@ -208,6 +215,9 @@ def main(
                 r_rand=r_rand,
             )
             next_state, reward, done, info = env.step(action)
+            step_count += 1
+            if info.get("arrived", False):
+                arrived = True
 
             normalized_action = normalize_action(action)
             replay_buffer.add(
@@ -228,6 +238,13 @@ def main(
             episode_reward += reward
 
         episode_rewards.append(float(episode_reward))
+        episode_stats.append({
+            "episode": episode,
+            "steps": step_count,
+            "arrived": arrived,
+            "network_phase": is_network_phase,
+            "reward": float(episode_reward),
+        })
 
         # Recent rolling average
         window_size = min(len(episode_rewards), log_every)
@@ -294,6 +311,38 @@ def main(
     rewards_file = os.path.join(checkpoint_dir, "episode_rewards.npy")
     np.save(rewards_file, np.array(episode_rewards, dtype=np.float32))
 
+    # Save detailed episode statistics (steps, arrival, network_phase)
+    stats_file = os.path.join(checkpoint_dir, "episode_stats.json")
+    try:
+        with open(stats_file, "w") as f:
+            json.dump(episode_stats, f, indent=2)
+    except Exception:
+        pass
+
+    net_eps = [e for e in episode_stats if e["network_phase"]]
+    if net_eps:
+        arrived_net = [e for e in net_eps if e["arrived"]]
+        non_arrived_net = [e for e in net_eps if not e["arrived"]]
+        arr_rate = len(arrived_net) / len(net_eps) * 100.0
+        mean_steps_arr = float(np.mean([e["steps"] for e in arrived_net])) if arrived_net else 0.0
+        mean_steps_non = float(np.mean([e["steps"] for e in non_arrived_net])) if non_arrived_net else 0.0
+        trans_arr = sum(e["steps"] for e in arrived_net)
+        trans_non = sum(e["steps"] for e in non_arrived_net)
+        trans_total = trans_arr + trans_non
+        frac_arr_trans = trans_arr / trans_total * 100.0 if trans_total > 0 else 0.0
+
+        print("\n" + "=" * 70, flush=True)
+        print("REPLAY BUFFER COMPOSITION (NETWORK-PHASE EPISODES ONLY)", flush=True)
+        print("=" * 70, flush=True)
+        print(f"Total Network-Phase Episodes: {len(net_eps)}", flush=True)
+        print(f"Arrived Network-Phase Episodes: {len(arrived_net)} ({arr_rate:.1f}%)", flush=True)
+        print(f"Mean Steps (Arrived Episodes): {mean_steps_arr:.1f}", flush=True)
+        print(f"Mean Steps (Non-Arrived Episodes): {mean_steps_non:.1f}", flush=True)
+        print(f"Total Transitions in Buffer: {trans_total}", flush=True)
+        print(f"  - From Arrived Episodes:     {trans_arr} ({frac_arr_trans:.2f}%)", flush=True)
+        print(f"  - From Non-Arrived Episodes: {trans_non} ({100.0 - frac_arr_trans:.2f}%)", flush=True)
+        print("=" * 70, flush=True)
+
     print(f"Training complete. Final checkpoint saved to: {final_ckpt}", flush=True)
     return episode_rewards
 
@@ -309,6 +358,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--checkpoint-every", type=int, default=500, help="Checkpoint saving interval in episodes")
     parser.add_argument("--log-every", type=int, default=10, help="Logging interval in episodes")
     parser.add_argument("--r-rand", type=int, default=R_RAND, help="Prior knowledge exploration threshold R_rand")
+    parser.add_argument("--gamma", type=float, default=GAMMA, help="Discount factor gamma for Bellman updates (default: 0.96)")
     parser.add_argument("--no-progress", action="store_true", help="Disable visual tqdm progress bar")
     parser.add_argument("--resume", action="store_true", help="Resume training from latest checkpoint in checkpoint-dir")
     parser.add_argument("--resume-from", type=str, default=None, help="Explicit checkpoint file (.pt) to resume from")
@@ -331,6 +381,7 @@ if __name__ == "__main__":
         checkpoint_every=args.checkpoint_every,
         log_every=args.log_every,
         r_rand=args.r_rand,
+        gamma=args.gamma,
         use_progress_bar=not args.no_progress,
         resume=args.resume,
         resume_from=args.resume_from,
