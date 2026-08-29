@@ -29,6 +29,7 @@ import numpy as np
 
 from uav_trajectory_rl.config import (
     ACTION_CLIP_C,
+    ANNEAL_STEPS,
     LAMBDA_PK,
     RHO_PK,
     R_RAND,
@@ -122,14 +123,20 @@ def select_action(
     sigma3: float = SIGMA3,
     c: float = ACTION_CLIP_C,
     r_rand: int = R_RAND,
+    anneal_steps: int = ANNEAL_STEPS,
 ) -> Tuple[float, float, float]:
     """
-    Select an action according to the prior-knowledge exploration policy (eq. 31).
+    Select an action according to the prior-knowledge exploration policy (eq. 31),
+    with optional probabilistic annealing over transition window [R_rand, R_rand + anneal_steps].
 
     Formula:
-        a_n = a_n^pk,                              if R_ex <= R_rand
-              clip(actor_fn(s_n) + eps, -c, c),    if R_ex > R_rand
-        where eps ~ N(0, sigma3), R_ex = replay_buffer_size.
+        If R_ex <= R_rand:
+            a_n = a_n^pk (pure prior knowledge)
+        If R_rand < R_ex <= R_rand + anneal_steps:
+            p_pk = 1.0 - (R_ex - R_rand) / anneal_steps
+            a_n = a_n^pk with probability p_pk, else clip(actor_fn(s_n) + eps, -c, c)
+        If R_ex > R_rand + anneal_steps:
+            a_n = clip(actor_fn(s_n) + eps, -c, c) (pure network)
 
     Parameters:
         state: Current environment state vector s_n.
@@ -139,12 +146,19 @@ def select_action(
         sigma3: Standard deviation of exploration noise (default from config: SIGMA3 = 0.1).
         c: Action clipping bound (default from config: ACTION_CLIP_C = 1.0).
         r_rand: Number of pure prior-knowledge exploration steps (default: R_RAND = 20000).
+        anneal_steps: Transition steps over which PK reliance linearly anneals from 1 to 0.
+            If 0, performs an abrupt hard switch at R_rand (literal paper eq. 31).
 
     Returns:
         Tuple[float, float, float]: Physical action (v, lam, rho) ready for env.step().
     """
     if replay_buffer_size <= r_rand:
         return generate_prior_knowledge_action(rng)
+
+    if anneal_steps > 0 and replay_buffer_size <= r_rand + anneal_steps:
+        p_pk = 1.0 - float(replay_buffer_size - r_rand) / float(anneal_steps)
+        if rng.random() < p_pk:
+            return generate_prior_knowledge_action(rng)
 
     raw = np.asarray(actor_fn(state), dtype=np.float64)
     eps = rng.normal(0.0, sigma3, size=3)

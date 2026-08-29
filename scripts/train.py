@@ -45,6 +45,7 @@ import numpy as np
 import torch
 
 from uav_trajectory_rl.config import (
+    ANNEAL_STEPS,
     BATCH_SIZE,
     GAMMA,
     M_EPISODES,
@@ -71,6 +72,7 @@ def main(
     checkpoint_every: int = 500,
     log_every: int = 10,
     r_rand: int = R_RAND,
+    anneal_steps: int = ANNEAL_STEPS,
     use_progress_bar: bool = True,
     resume: bool = False,
     resume_from: Optional[str] = None,
@@ -91,6 +93,7 @@ def main(
         checkpoint_every: Interval of episodes between saving intermediate checkpoints.
         log_every: Interval of episodes between logging progress to stdout.
         r_rand: Exploration threshold R_rand for prior-knowledge guidance (default: R_RAND = 20000).
+        anneal_steps: Transition steps for annealed PK-to-network handoff (default: ANNEAL_STEPS = 0).
         use_progress_bar: Whether to display interactive tqdm progress bar with ETA.
         resume: Whether to automatically resume from the latest checkpoint in checkpoint_dir.
         resume_from: Explicit path to a checkpoint file (.pt) to resume training from.
@@ -218,6 +221,7 @@ def main(
                 actor_fn=agent.select_action,
                 rng=rng,
                 r_rand=r_rand,
+                anneal_steps=anneal_steps,
             )
             next_state, reward, done, info = env.step(action)
             step_count += 1
@@ -395,6 +399,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Maximum steps from episode end for arrived transitions (terminal-weighted replay sampling)",
     )
+    parser.add_argument(
+        "--anneal-steps",
+        type=int,
+        default=ANNEAL_STEPS,
+        help="Transition steps for annealed PK-to-network handoff (default: ANNEAL_STEPS = 0)",
+    )
     parser.add_argument("--no-progress", action="store_true", help="Disable visual tqdm progress bar")
     parser.add_argument("--resume", action="store_true", help="Resume training from latest checkpoint in checkpoint-dir")
     parser.add_argument("--resume-from", type=str, default=None, help="Explicit checkpoint file (.pt) to resume from")
@@ -417,6 +427,7 @@ if __name__ == "__main__":
         checkpoint_every=args.checkpoint_every,
         log_every=args.log_every,
         r_rand=args.r_rand,
+        anneal_steps=args.anneal_steps,
         gamma=args.gamma,
         arrived_fraction=args.arrived_fraction,
         terminal_window=args.terminal_window,

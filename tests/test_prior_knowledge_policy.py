@@ -115,3 +115,62 @@ def test_action_normalization_round_trip():
         norm = normalize_action(phys, c=c)
         recovered_phys = unnormalize_action(norm, c=c)
         assert np.allclose(recovered_phys, phys, atol=1e-9)
+
+
+def test_select_action_annealed_handoff():
+    """
+    Test probabilistic decay of PK action selection during the anneal window.
+    """
+    rng = np.random.default_rng(999)
+    dummy_state = np.zeros(26)
+    anneal_steps = 10000
+
+    def mock_actor_fn(state: np.ndarray) -> np.ndarray:
+        # Returns distinct action: v=0, lam=0, rho=0
+        return np.array([-1.0, -1.0, 0.0])
+
+    # 1. At or before R_RAND: 100% PK actions (v in [0, V_MAX], lam = pi/2, rho >= 0)
+    for _ in range(50):
+        v, lam, rho = select_action(
+            state=dummy_state,
+            replay_buffer_size=R_RAND,
+            actor_fn=mock_actor_fn,
+            rng=rng,
+            r_rand=R_RAND,
+            anneal_steps=anneal_steps,
+        )
+        assert math.isclose(lam, LAMBDA_PK)
+
+    # 2. Beyond R_RAND + anneal_steps: 100% network actions (lam near 0, not pi/2)
+    for _ in range(50):
+        v, lam, rho = select_action(
+            state=dummy_state,
+            replay_buffer_size=R_RAND + anneal_steps + 1,
+            actor_fn=mock_actor_fn,
+            rng=rng,
+            sigma3=0.01,  # very low noise so lam stays close to 0
+            r_rand=R_RAND,
+            anneal_steps=anneal_steps,
+        )
+        # Network output has raw lam = -1.0 -> physical lam = 0.0 (far from pi/2 = 1.57)
+        assert lam < 0.5
+
+    # 3. Halfway through anneal window: mixed PK and network actions
+    pk_count = 0
+    total = 200
+    for _ in range(total):
+        v, lam, rho = select_action(
+            state=dummy_state,
+            replay_buffer_size=R_RAND + (anneal_steps // 2),
+            actor_fn=mock_actor_fn,
+            rng=rng,
+            sigma3=0.01,
+            r_rand=R_RAND,
+            anneal_steps=anneal_steps,
+        )
+        if math.isclose(lam, LAMBDA_PK, abs_tol=0.1):
+            pk_count += 1
+
+    # Probability p_pk = 0.5 at midpoint -> pk_count should be around 100 (e.g. between 70 and 130)
+    assert 60 <= pk_count <= 140, f"Expected ~100 PK actions at midpoint, got {pk_count}"
+

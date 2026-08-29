@@ -704,5 +704,90 @@ Conducted direct numerical inspection of the neural networks at the exact initia
 3. **The Local Policy Gradient Drives the Actor Directly into the Boundary:**
    The gradient $\frac{\partial Q_1}{\partial \rho_{\text{norm}}}$ and $\frac{\partial Q_1}{\partial \lambda_{\text{norm}}}$ at `final.pt` are large and negative ($-2.29$ and $-7.24$), actively steering the actor's heading and pitch into the negative boundary walls.
 
+### Annealed PK-to-Network Handoff Diagnostic (`checkpoints/diag_annealed_handoff/`)
+Tested replacing the abrupt hard switch at $R_{\text{rand}} = 20,000$ (eq. 31) with a probabilistic linear anneal over an additional transition window (`anneal_steps = 20000`):
+- For $R_{\text{ex}} \le R_{\text{rand}}$: $p_{\text{pk}} = 1.0$ (always prior knowledge).
+- For $R_{\text{rand}} < R_{\text{ex}} \le R_{\text{rand}} + \text{anneal\_steps}$: $p_{\text{pk}} = 1.0 - (R_{\text{ex}} - R_{\text{rand}}) / \text{anneal\_steps}$ (linearly decays $1 \rightarrow 0$).
+- For $R_{\text{ex}} > R_{\text{rand}} + \text{anneal\_steps}$: $p_{\text{pk}} = 0.0$ (pure network policy).
+
+#### Implementation Details:
+1. **Config & Policy:** Added `ANNEAL_STEPS: int = 0` in `config.py`. Updated `select_action` in `prior_knowledge_policy.py` with probabilistic anneal.
+2. **Wiring:** Added `--anneal-steps` CLI override in `train.py`.
+3. **Unit Tests:** Added `test_select_action_annealed_handoff` in `test_prior_knowledge_policy.py`. All 45 tests pass.
+
+#### 800-Episode Diagnostic Evaluation (`--r-rand 20000 --anneal-steps 20000`, 20 Seeds, $k=10$):
+| Checkpoint | Mean Max Disp (m) | Median Disp (m) | Frac > 50m (%) | **Arrival Rate (%)** | Mean Reward |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| `td3_agent_ep200.pt` | 0.0 m | 0.0 m | 0.0% | **0.0%** | -291.45 |
+| `td3_agent_ep400.pt` | 145.3 m | 0.0 m | 35.0% | **0.0%** | +372.03 |
+| `td3_agent_ep600.pt` | 168.3 m | 0.0 m | 35.0% | **0.0%** | +383.26 |
+| `td3_agent_final.pt` (ep800) | 84.6 m | 0.0 m | 15.0% | **0.0%** | +268.07 |
+
+#### Training Replay Buffer Composition (Network Phase):
+- **Network-Phase Episodes:** 685 (eps 116–800)
+- **Arrived Network-Phase Episodes:** **17 (2.5%)** *(First time non-zero in network phase!)*
+- **Transitions from Arrived Episodes:** **2,369 (1.74%)**
+- **Transitions from Non-Arrived Episodes:** 133,600 (98.26%)
+
+#### Step 1 & 2: Actor Output & Critic $Q_1$ Values at $Q_{\text{START}}$:
+| Checkpoint | Actor Output (norm) | Actor Action (phys) | $Q_1(\text{A: PK})$ | $Q_1(\text{B: Hov})$ | $Q_1(\text{C: Wall})$ | $Q_1(\text{D: Actor})$ | A vs C Spread |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| `td3_agent_ep200.pt` | `[+1.000, -0.999, -1.000]` | $v=20.0\text{ m/s}, \lambda=+0.1^\circ, \rho=-180.0^\circ$ | $+58.34$ | $+56.53$ | $+56.39$ | $+57.83$ | $3.4\%$ |
+| `td3_agent_ep400.pt` | `[+0.998, -0.688, -0.034]` | $v=20.0\text{ m/s}, \lambda=+28.1^\circ, \rho=-6.0^\circ$ | $+54.52$ | $+54.29$ | $+54.24$ | $+54.96$ | **$0.5\%$** |
+| `td3_agent_ep600.pt` | `[+1.000, -0.725, -0.443]` | $v=20.0\text{ m/s}, \lambda=+24.8^\circ, \rho=-79.8^\circ$ | $+45.37$ | $+43.98$ | $+43.80$ | $+45.62$ | $3.5\%$ |
+| `td3_agent_final.pt` | `[+1.000, +0.873, -0.936]` | $v=20.0\text{ m/s}, \lambda=+168.6^\circ, \rho=-168.5^\circ$ | $+54.91$ | $+47.35$ | $+52.69$ | $+49.65$ | $4.0\%$ |
+
+#### Step 3: Local Policy Gradient $\nabla_a Q_1(s_0, a)$ at Actor's Output:
+| Checkpoint | $\frac{\partial Q_1}{\partial v_{\text{norm}}}$ | $\frac{\partial Q_1}{\partial \lambda_{\text{norm}}}$ | $\frac{\partial Q_1}{\partial \rho_{\text{norm}}}$ | Interpretation |
+| :--- | :---: | :---: | :---: | :--- |
+| `td3_agent_ep200.pt` | $+1.8348$ | $-1.4424$ | $+0.9364$ | Wants speed; pushes $\lambda \rightarrow -1$ (upward along boundary) |
+| `td3_agent_ep400.pt` | $+0.8392$ | $-0.2717$ | $+1.0191$ | Wants speed; pushes $\lambda \rightarrow -1$ |
+| `td3_agent_ep600.pt` | $+2.1441$ | $+2.6382$ | $+1.5476$ | Wants speed and positive angles |
+| `td3_agent_final.pt` | $+2.6811$ | $+0.5579$ | $-0.5303$ | Saturated speed at $+1$; pushes $\rho$ into west wall |
+
+#### Honest Engineering Read:
+1. **Did Arrival Rate Move Off Zero?**
+   - **NO. Deterministic arrival rate is STILL 0.0% across all checkpoints (0 arrivals out of 80 deterministic rollouts).**
+2. **Did Annealing Help?**
+   - **Partially, during training:** For the first time in any run, 17 network-phase episodes (2.5%) successfully arrived during training, boosting deterministic escape rate to **35.0%** and peak mean displacement to **168.3 m** at `ep600`.
+3. **Did the Q1 Spread at $Q_{\text{START}}$ Widen?**
+   - **NO.** The spread between Action A ("PK toward goal") and Action C ("Into the wall") remains within **$0.5\% - 4.0\%$** ($+54.52$ vs $+54.24$ at `ep400`).
+   - The value surface at the initial corner remains fundamentally flat.
+
+---
+
+## Investigation Summary and Status (Supervisor Standalone Reference)
+
+### 1. Executive Problem Statement
+Across extensive training runs (including 6,000-episode runs in Colab and 800-episode local diagnostics), the PKTD3-TD deterministic evaluation policy consistently achieves a **0.0% destination arrival rate and 0.0m median displacement**, collapsing into complete inaction or immediate spatial boundary cancellation at the initial state $Q_{\text{START}} = (0, 0, 50)$, despite 100% adherence to all equations, network architectures, and hyperparameters in the IEEE TNSE reference paper.
+
+### 2. What Was Tested (Comprehensive 10-Round Summary)
+1. **Energy Formula Singularity:** Fixed initial zero-speed division in earlier code using the paper's smooth aerodynamic drag model ($P(0) \approx 124\text{ W}$).
+2. **State Normalization Bounds:** Confirmed all 26 state features are properly normalized in $[0, 1]$ or $[-1, 1]$.
+3. **Action Space Affine Scaling:** Formally verified invertible round-trip between actor output $[-1, 1]^3$ and physical kinematics $[0, 20]\text{ m/s}, [0, \pi], [-\pi, \pi]$.
+4. **Channel Recalibration (Carrier & Noise Floor):** Recalibrated unspecified channel parameters ($f_c = 2.4\text{ GHz}, N_0 = -174\text{ dBm/Hz}$), widening the TDPK full-journey advantage from 1.59x to 2.65x (+165%) and ensuring partial flight beats hovering by 7x. 0% arrival persisted.
+5. **Discount Factor Horizon ($\gamma = 0.99$):** Quadrupled effective horizon from 25 steps to 100 steps. Mean displacement reached 140m, but arrivals remained 0.0%.
+6. **Replay Buffer Purging Mechanism:** Proved that buffer circular eviction ($100\text{k}$ capacity) entrenches failure past episode 600, but is NOT the root cause, since failure occurs by episode 200 before any eviction.
+7. **Prior-Knowledge Exploration Volume ($R_{\text{rand}} = 60,000$):** Tripled PK demonstrations to 343 arrival episodes (60,000 transitions); policy still collapsed immediately at handoff (0% arrivals).
+8. **Flat Stratified Sampling (30% Arrived Oversampling):** Guaranteed 38 arrival transitions in every 128-sample mini-batch; actor still collapsed to 0.0m displacement at `ep200.pt`.
+9. **Terminal-Weighted Stratified Sampling (Last 15 Steps Oversampling):** Focused oversampling on terminal arrival transitions; resulted in complete 0.0m paralysis across all checkpoints due to spatial disconnect from $Q_{\text{START}}$.
+10. **Annealed PK-to-Network Handoff (Probabilistic Linear Decay):** Replaced abrupt switch with 20,000-step linear decay. Generated 17 training arrivals and 35% corner escapes, but Q-value spread remained flat ($0.5\% - 4.0\%$) and deterministic arrival stayed at 0.0%.
+
+### 3. Root Cause Diagnosis: The Flat Value Surface at the Corner Boundary
+- At $Q_{\text{START}} = (0, 0, 50)$, the UAV sits on the intersection of three boundary planes: $x = 0, y = 0, z = 50$.
+- Consequently, **7 out of 8 direction octants (87.5% of the action sphere) lead to immediate boundary cancellation**.
+- Under the paper's reward structure:
+  - When an action attempts to cross the boundary, the position stays unchanged ($q_n = q_{n-1}$), zero throughput is collected, energy is consumed (or hovering energy spent), and no crash termination occurs.
+  - The step reward for hitting the boundary wall ($r \approx -1.5$) is numerically indistinguishable from the early per-step reward of flying towards the goal ($r \approx -1.2$).
+- Direct numerical inspection proved that the twin critic evaluates flying toward the goal ($+54.52$) and flying directly into the boundary wall ($+54.24$) within **0.5% of each other**.
+- In this nearly flat, undifferentiated value surface, minor numerical noise in the critic causes the deterministic policy gradient $\nabla_a Q(s, a)$ to push the actor towards the boundary limits, permanently trapping the UAV at $(0, 0, 50)$.
+
+### 4. Current Status of Checkpoints & Codebase Defaults
+- **Checkpoints:** All checkpoints in `checkpoints/run1`, `run2`, `run3`, and `checkpoints/diag_*` are documented as diagnostic/experimental artifacts. None are suitable for downstream baseline comparison or publication figures.
+- **Codebase Defaults:**
+  - `config.py`: `GAMMA = 0.96`, `R_RAND = 20000`, `ANNEAL_STEPS = 0` (paper baseline default).
+  - CLI flags: `--anneal-steps`, `--arrived-fraction`, `--terminal-window`, `--gamma` remain available as opt-in diagnostic instruments.
+  - Test Suite: **All 45 unit tests pass** in 17.03s.
+
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*

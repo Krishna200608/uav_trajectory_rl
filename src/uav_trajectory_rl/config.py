@@ -114,6 +114,7 @@ POLICY_DELAY: int = 2              # Target network & policy update frequency de
 LAMBDA_PK: float = 0.5 * math.pi   # Prior Knowledge (PK) guidance scaling angle
 RHO_PK: float = 0.5 * math.pi      # Prior Knowledge (PK) guidance scaling angle
 R_RAND: int = 20000                # Number of pure random exploration steps
+ANNEAL_STEPS: int = 0          # DESIGN DECISION: Transition steps for PK-to-network handoff anneal (0 = paper abrupt switch)
 SIGMA3: float = 0.1                # Exploration noise standard deviation (eq. 31)
 SIGMA_TILDE: float = 0.2           # Target policy smoothing noise standard deviation (eq. 38)
 LEARNING_RATE: float = 1e-4        # Adam optimizer learning rate for actor and critic

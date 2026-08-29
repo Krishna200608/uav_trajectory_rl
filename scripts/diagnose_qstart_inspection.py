@@ -210,7 +210,8 @@ def inspect_checkpoints(ckpt_dir_str: str = "checkpoints/diag_rrand60k"):
 
 
 if __name__ == "__main__":
-    run_step0_sanity_check()
+    if Path("checkpoints/diag_annealed_handoff").exists():
+        inspect_checkpoints("checkpoints/diag_annealed_handoff")
     inspect_checkpoints("checkpoints/diag_rrand60k")
     if Path("checkpoints/diag_channelfix").exists():
         inspect_checkpoints("checkpoints/diag_channelfix")
