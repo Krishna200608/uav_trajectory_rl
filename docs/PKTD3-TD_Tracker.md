@@ -463,7 +463,28 @@ Adopted **`FC_HZ = 2.4e9` (2.4 GHz)** and **`N0_DBM_HZ = -174.0 dBm/Hz`**:
   - TDPK Total Reward: **$+298.89$**
   - Always Hover Total Reward: **$+112.77$**
   - Net Delta: **$+186.12$**
-  - **Net Advantage: 2.65x (+165.0%)**.
+#### 800-Episode Local Diagnostic under Recalibrated Channel (`checkpoints/diag_channelfix/`):
+Executed an 800-episode diagnostic run (`scripts/train.py --episodes 800 --seed 0 --checkpoint-dir checkpoints/diag_channelfix --checkpoint-every 200`) under the updated 2.4 GHz channel calibration.
+Evaluated all checkpoints (`ep200`, `ep400`, `ep600`, `final`) across 20 seeds (0–19, $k=10$) with the deterministic actor (`scripts/diagnose_channelfix_eval.py`):
+
+| Checkpoint | Mean Max Disp (m) | Median Disp (m) | Frac > 50m (%) | Arrival Rate (%) | Mean Reward |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| `td3_agent_ep200.pt` | 1.0 m | 0.0 m | 0.0% | **0.0%** | +135.87 |
+| `td3_agent_ep400.pt` | 51.1 m | 0.0 m | 10.0% | **0.0%** | +190.27 |
+| `td3_agent_ep600.pt` | 18.5 m | 0.0 m | 5.0% | **0.0%** | +90.81 |
+| `td3_agent_final.pt` (ep800) | 26.1 m | 0.0 m | 5.0% | **0.0%** | +125.11 |
+
+##### Honest Read on Diagnostic Findings:
+1. **Arrival Rate Did NOT Move Off Zero (STILL STRICTLY 0.0%):**
+   - In 80 total deterministic evaluation rollouts (4 checkpoints $\times$ 20 seeds), exactly **0 episodes arrived at $Q_{\text{END}}$**.
+   - Arrival rate did not budge from 0.0%, conclusively demonstrating that channel recalibration alone does not resolve the navigation consolidation bottleneck.
+2. **Median Inaction Persists (0.0 m):**
+   - Across all 4 checkpoints, the median maximum displacement remains exactly 0.0 m. Over 50% of evaluation seeds never leave $Q_{\text{START}}$ due to immediate boundary cancellations on step 1.
+3. **Contrast with Training Behavior:**
+   - During training, episodes with exploratory perturbation ($\sigma_3 = 0.1$) regularly hit arrival-scale returns ($+962$ to $+1352$). However, the deterministic policy gradient does not consolidate these exploratory trajectories into a reproducible policy.
+4. **Conclusion:**
+   - Channel recalibration successfully widened the theoretical and empirical TDPK-vs-Hover margin (2.65x), but the policy navigation/credit assignment deficit is NOT solved by channel parameter changes alone.
+   - Do NOT start a full 6,000-episode Colab run yet. Further diagnosis of the actor gradient / action-space boundary behavior is required.
 
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
