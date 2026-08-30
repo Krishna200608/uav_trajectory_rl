@@ -97,7 +97,7 @@ Algorithm 1, line 15, lists `r_n = r_n,1+r_n,2+r_n,3+r_n,4+r_n,5` — **omits r_
 | M7 | TD3 networks + replay buffer | M0 | **Done — reviewed, approved (shapes, q1_forward consistency, and circular-buffer overwrite hand-verified)** |
 | M9 | Training loop / full Algorithm 1 | M5, M6, M7, M8 | **Implemented & component-verified (M0–M8 hand-verified); full convergence NOT achieved across runs 1–4 (flat value surface at Q_START); investigation closed, see Review notes** |
 | M10 | Baseline: TDPK | M5 | **Done — reviewed, approved (geometry hand-verified: diagonal, vertical, and degenerate same-point cases all match spec exactly)** |
-| M11 | Baseline: Dueling DQL | M5 | Not started |
+| M11 | Baseline: Dueling DQL | M5 | **Implemented — pending review (200-action grid, dueling architecture, discrete replay buffer, training loop)** |
 | M12 | Baseline: PPO | M5 | Not started |
 | M13 | Baseline: Greedy | M5 | Not started |
 | M14 | Evaluation & plotting suite (Figs. 4–12, Tables IV–VI) | M9–M13 | Not started |
@@ -752,6 +752,60 @@ Tested replacing the abrupt hard switch at $R_{\text{rand}} = 20,000$ (eq. 31) w
 3. **Did the Q1 Spread at $Q_{\text{START}}$ Widen?**
    - **NO.** The spread between Action A ("PK toward goal") and Action C ("Into the wall") remains within **$0.5\% - 4.0\%$** ($+54.52$ vs $+54.24$ at `ep400`).
    - The value surface at the initial corner remains fundamentally flat.
+
+---
+
+### M11 — Dueling Deep Q-Learning (Dueling DQL) Baseline Design & Verification
+
+#### 1. Context and Paper Reference
+The IEEE TNSE reference paper evaluates Dueling DQL [47] as a discrete-action benchmark:
+> *"Dueling DQL [47]: This method balances UAV's flight time and achieves throughput, allowing adjustment of the scaling factor to shorten the UAV's trajectory and appropriately increase data collected from users."*
+
+Because the paper does not specify the discretization grid or training hyperparameters for this baseline, all architectural and algorithmic choices are documented below as explicit **DESIGN DECISIONS**. The underlying MDP environment (`UAVTrajectoryEnv`), state representation (26-dimensional), and 6-part reward function (eq. 21–29) are identical to the PKTD3-TD setup.
+
+#### 2. Action Space Discretization (DESIGN DECISION)
+The continuous 3D velocity action space $(v, \lambda, \rho)$ is discretized into a 3D grid with $5 \times 5 \times 8 = 200$ combinations:
+- **Speed ($v$):** 5 levels in $[0.0, 20.0]\text{ m/s}$: `[0.0, 5.0, 10.0, 15.0, 20.0]`.
+- **Polar angle ($\lambda$):** 5 levels in $[0, \pi]$: `[0, pi/4, pi/2, 3*pi/4, pi]`.
+- **Azimuth angle ($\rho$):** 8 levels in $[-\pi, \pi)$ ($\pi$ excluded as equivalent to $-\pi$): `[-pi, -3*pi/4, -pi/2, -pi/4, 0, pi/4, pi/2, 3*pi/4]`.
+
+Helper functions `discrete_action_to_physical` and `physical_to_nearest_discrete_idx` handle bidirectional flat-index conversions with circular wrap-around handling for azimuth angle.
+
+#### 3. Dueling Q-Network Architecture
+- **Shared Representation Trunk:** Linear($\text{state\_dim} = 26 \to 256$) $\to$ ReLU $\to$ Linear($256 \to 256$) $\to$ ReLU (matches the 2-hidden-layer 256-unit MLP used in PKTD3-TD for fairness).
+- **State-Value Stream ($V$):** Linear($256 \to 1$).
+- **Action-Advantage Stream ($A$):** Linear($256 \to 200$).
+- **Identifiability Combination (Wang et al., 2016):**
+  $$Q(s, a) = V(s) + \left(A(s, a) - \frac{1}{|\mathcal{A}|}\sum_{a'} A(s, a')\right)$$
+
+#### 4. Training Mechanics
+- **Single Network & Target:** Uses a single `DuelingQNetwork` with a target network (no twin critic or clipped double-Q, and no policy delay $d$).
+- **Bellman Target:** $y = r + \gamma (1 - d) \max_{a'} Q_{\text{target}}(s', a')$.
+- **Target Soft Updates:** Polyak soft updates ($\theta_{\text{target}} \leftarrow \tau \theta + (1 - \tau) \theta_{\text{target}}$, $\tau = 0.005$) performed on every training step.
+- **Exploration:** Epsilon-greedy exploration linearly decaying from $\epsilon_{\text{start}} = 1.0$ to $\epsilon_{\text{end}} = 0.05$. (No prior-knowledge guidance branch used, following standard DQN practice).
+- **Gradient Clipping:** Max norm $10.0$ matching `TD3Agent`.
+
+#### 5. Step 6 Diagnostic Results (800-Episode Local Run, `seed=0`)
+- **Training Progression:**
+  - `ep50`: reward $+191.8$, avg $+168.8$, $\epsilon = 0.926$
+  - `ep200`: reward $+1047.3$, avg $+877.5$, $\epsilon = 0.703$
+  - `ep400`: reward $+1392.5$, avg $+1217.0$, $\epsilon = 0.406$
+  - `ep600`: reward $+1643.9$, avg $+1479.6$, $\epsilon = 0.109$
+  - `ep800`: reward $+1587.3$, avg $+1509.0$, $\epsilon = 0.050$
+- **20-Seed Deterministic Behavioral Evaluation ($\epsilon = 0.0$):**
+  | Checkpoint | Mean Max Disp | Median Disp | Frac > 50m | Arrival Rate | Mean Reward |
+  |---|---|---|---|---|---|
+  | `dueling_dql_ep200.pt` | $689.6\text{ m}$ | $686.9\text{ m}$ | **100.0%** | **0.0%** | $+1047.33$ |
+  | `dueling_dql_ep400.pt` | $659.3\text{ m}$ | $661.1\text{ m}$ | **100.0%** | **0.0%** | $+1235.76$ |
+  | `dueling_dql_ep600.pt` | $694.0\text{ m}$ | $700.5\text{ m}$ | **100.0%** | **0.0%** | $+1463.55$ |
+  | `dueling_dql_ep800.pt` | $670.9\text{ m}$ | $683.3\text{ m}$ | **100.0%** | **0.0%** | $+1479.92$ |
+  | `dueling_dql_final.pt` | $670.9\text{ m}$ | $683.3\text{ m}$ | **100.0%** | **0.0%** | $+1479.92$ |
+- **Direct Q-Value Inspection at $Q_{\text{START}} = (0, 0, 50)$:**
+  - Selected action at $Q_{\text{START}}$: $v = 20.0\text{ m/s}, \lambda = 45^\circ, \rho = 45^\circ$ (high-speed climb northeast toward user swarm center).
+  - Q-values at final checkpoint: $Q(\text{Goal}) = 118.03, Q(\text{Hover}) = 115.11, Q(\text{Wall}) = 118.04, Q(\text{Chosen}) = 119.40$.
+- **Behavioral Analysis:**
+  - **Dueling DQL does NOT suffer from corner standstill paralysis:** Unlike PKTD3-TD, 100% of seeds escape the corner and achieve $>650\text{m}$ max displacement across the 3D space.
+  - **Throughput Harvesting vs Goal Arrival Trade-off:** The UAV navigates into the dense user swarm center (e.g. $(444, 265, 184)$ at $t=50$, $(540, 317, 61)$ at $t=200$) collecting substantial throughput (mean reward $+1479.92$ vs PKTD3-TD's $+154.52$). However, without explicit terminal guidance, it prioritizes hovering near users over reaching the final corner $q_e = (600, 600, 50)$ within 200 slots (ending $\approx 289\text{ m}$ away), resulting in a 0.0% arrival rate under this 800-episode budget. This precisely illustrates the paper's characterization of Dueling DQL balancing flight time vs. throughput.
 
 ---
 

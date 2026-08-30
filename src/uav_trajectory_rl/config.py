@@ -119,3 +119,24 @@ SIGMA3: float = 0.1                # Exploration noise standard deviation (eq. 3
 SIGMA_TILDE: float = 0.2           # Target policy smoothing noise standard deviation (eq. 38)
 LEARNING_RATE: float = 1e-4        # Adam optimizer learning rate for actor and critic
 HIDDEN_DIM: int = 256              # Number of units in neural network hidden layers
+
+# ==============================================================================
+# Dueling DQL Baseline Discretization (M11 - DESIGN DECISION, not paper-specified)
+# ==============================================================================
+# The IEEE TNSE reference evaluates Dueling DQL [47] as a discrete-action baseline
+# but does not specify the discretization grid. We discretize the 3D continuous
+# action space (v, lam, rho) into 5 x 5 x 8 = 200 discrete combinations.
+# Note: Used exclusively by Dueling DQL (M11), not by the continuous TD3 agent.
+V_LEVELS: list[float] = [0.0, 5.0, 10.0, 15.0, 20.0]           # 5 speed levels (m/s)
+LAM_LEVELS: list[float] = [0.0, 0.25 * math.pi, 0.5 * math.pi, 0.75 * math.pi, math.pi]  # 5 polar angles
+RHO_LEVELS: list[float] = [                                   # 8 azimuth angles (pi excluded, equiv to -pi)
+    -math.pi,
+    -0.75 * math.pi,
+    -0.5 * math.pi,
+    -0.25 * math.pi,
+    0.0,
+    0.25 * math.pi,
+    0.5 * math.pi,
+    0.75 * math.pi,
+]
+NUM_DISCRETE_ACTIONS: int = len(V_LEVELS) * len(LAM_LEVELS) * len(RHO_LEVELS)  # 200

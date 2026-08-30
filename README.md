@@ -151,7 +151,7 @@ uav_trajectory_rl/
 - [x] M8 -- TD3 update rules (eq. 32-38)
 - [x] M9 -- Training loop (Algorithm 1; component-verified, convergence NOT achieved across runs 1–4; investigation closed, see docs/PKTD3-TD_Tracker.md)
 - [x] M10 -- Baseline: TDPK
-- [ ] M11 -- Baseline: Dueling DQL
+- [x] M11 -- Baseline: Dueling DQL
 - [ ] M12 -- Baseline: PPO
 - [ ] M13 -- Baseline: Greedy
 - [ ] M14 -- Evaluation and plotting suite (Figs. 4-12, Tables IV-VI)
@@ -171,7 +171,8 @@ uav_trajectory_rl/
 | M8 | `td3_agent.py` | Clipped double-Q and target smoothing (eq. 32-38) | Done (reviewed, approved) |
 | M9 | `scripts/train.py` | Training loop (Algorithm 1) | Implemented & component-verified (M0–M8 hand-verified); full convergence NOT achieved across runs 1–4 (flat value surface at Q_START); investigation closed, see docs/PKTD3-TD_Tracker.md |
 | M10 | `baselines/tdpk.py` | Baseline: TDPK (direct-to-destination flight) | Done (reviewed, approved) |
-| M11-M13 | Baselines | Dueling DQL, PPO, Greedy | In progress / scheduled next |
+| M11 | `baselines/dueling_dql.py` | Baseline: Dueling DQL (discrete 200-action Q-learning) | Implemented -- pending review (50 unit tests passing) |
+| M12-M13 | Baselines | PPO, Greedy | In progress / scheduled next |
 | M14 | Evaluation | Plotting suite (Figs. 4-12, Tables IV-VI) | Scheduled next |
 
 Full parameter grounding, paper corrections, and review notes: [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md)
