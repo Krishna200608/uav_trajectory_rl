@@ -51,9 +51,12 @@ def main(
     rewards = []
     arrivals = 0
     episode_times = []
+    steps_list = []
+    arrived_steps = []
+    last_5_steps_arrivals = 0
 
-    print(f"\n{'Seed':>5} {'MaxDisp':>10} {'Reward':>12} {'Arrived':>8} {'Time(s)':>10}")
-    print("-" * 50)
+    print(f"\n{'Seed':>5} {'Steps':>6} {'MaxDisp':>10} {'Reward':>12} {'Arrived':>8} {'Time(s)':>10}")
+    print("-" * 60)
 
     for seed in range(n_eval_seeds):
         rng = np.random.default_rng(seed)
@@ -65,6 +68,8 @@ def main(
 
         elapsed = t_end - t_start
         episode_times.append(elapsed)
+        steps = result["steps_taken"]
+        steps_list.append(steps)
 
         # Max displacement from Q_START
         traj = result["trajectory"]
@@ -77,9 +82,12 @@ def main(
         rewards.append(result["episode_reward"])
         if result["arrived"]:
             arrivals += 1
+            arrived_steps.append(steps)
+            if steps >= 196:  # final 5 steps of 200 (1-indexed steps 196..200, i.e. t >= 195)
+                last_5_steps_arrivals += 1
 
         print(
-            f"{seed:>5} {max_disp:>10.1f} {result['episode_reward']:>+12.2f} "
+            f"{seed:>5} {steps:>6d} {max_disp:>10.1f} {result['episode_reward']:>+12.2f} "
             f"{'YES' if result['arrived'] else 'NO':>8} {elapsed:>10.2f}"
         )
 
@@ -89,11 +97,16 @@ def main(
     print(f"Mean Max Displacement: {np.mean(max_disps):.1f} m")
     print(f"Median Max Displacement: {np.median(max_disps):.1f} m")
     print(f"Frac > 50m: {np.mean([d > 50.0 for d in max_disps]):.1%}")
-    print(f"Arrival Rate: {arrivals / n_eval_seeds:.1%}")
+    print(f"Arrival Rate: {arrivals / n_eval_seeds:.1%} ({arrivals}/{n_eval_seeds} seeds)")
     print(f"Mean Reward: {np.mean(rewards):+.2f}")
     print(f"Mean Episode Time: {np.mean(episode_times):.2f}s")
     print(f"Median Episode Time: {np.median(episode_times):.2f}s")
     print(f"Total Evaluation Time: {sum(episode_times):.1f}s")
+    print("-" * 70)
+    print("STEPS-TAKEN DISTRIBUTION & ARRIVAL MECHANISM:")
+    print(f"Steps Taken: mean={np.mean(steps_list):.1f}, median={np.median(steps_list):.1f}, min={np.min(steps_list)}, max={np.max(steps_list)}")
+    print(f"Arrivals in final 5 steps (t >= 195, step >= 196): {last_5_steps_arrivals}/{arrivals} ({last_5_steps_arrivals/max(1, arrivals):.1%})")
+    print(f"Arrivals earlier than step 196: {arrivals - last_5_steps_arrivals}/{arrivals}")
     print("=" * 70)
 
     # Save results
@@ -105,6 +118,18 @@ def main(
         "frac_gt50m": float(np.mean([d > 50.0 for d in max_disps])),
         "arrival_rate": arrivals / n_eval_seeds,
         "mean_reward": float(np.mean(rewards)),
+        "steps_taken": {
+            "mean": float(np.mean(steps_list)),
+            "median": float(np.median(steps_list)),
+            "min": int(np.min(steps_list)),
+            "max": int(np.max(steps_list)),
+        },
+        "arrival_mechanism": {
+            "total_arrivals": arrivals,
+            "arrivals_in_last_5_steps": last_5_steps_arrivals,
+            "arrivals_earlier": arrivals - last_5_steps_arrivals,
+            "pct_last_second": float(last_5_steps_arrivals / max(1, arrivals)),
+        },
         "mean_episode_time_s": float(np.mean(episode_times)),
         "median_episode_time_s": float(np.median(episode_times)),
         "total_eval_time_s": float(sum(episode_times)),

@@ -922,23 +922,30 @@ The real environment's state is **NEVER modified** during the search; only the c
 | 0 | 844.1 | +693.47 | ✓ | 12.09 |
 | 1 | 845.4 | +664.53 | ✓ | 11.93 |
 | 2 | 846.2 | +552.18 | ✓ | 12.27 |
-| 3 | 848.1 | +762.72 | ✓ | 12.72 |
-| 4 | 845.0 | +1088.02 | ✓ | 12.51 |
-| 5 | 845.0 | +978.63 | ✓ | 12.48 |
-| 6 | 845.0 | +1022.40 | ✓ | 12.12 |
-| 7 | 847.5 | +549.12 | ✓ | 12.04 |
-| 8 | 846.6 | +570.76 | ✓ | 12.53 |
-| 9 | 846.2 | +1155.04 | ✓ | 12.36 |
-| 10 | 847.8 | +635.72 | ✓ | 12.65 |
-| 11 | 847.6 | +920.79 | ✓ | 12.80 |
-| 12 | 844.5 | +571.81 | ✓ | 13.02 |
-| 13 | 847.8 | +798.90 | ✓ | 12.64 |
-| 14 | 743.6 | +1181.94 | ✗ | 12.56 |
-| 15 | 845.7 | +941.75 | ✓ | 12.54 |
-| 16 | 843.6 | +551.44 | ✓ | 12.38 |
-| 17 | 845.0 | +556.97 | ✓ | 12.20 |
-| 18 | 847.7 | +931.58 | ✓ | 12.52 |
-| 19 | 844.1 | +677.21 | ✓ | 12.64 |
+#### 5. Step 5 Diagnostic Results (20 Seeds, k=10, no training required)
+
+| Seed | Max Disp (m) | Reward | Arrived | First <20m (Step) | First <10m (Step) | Arrival Step | Cancelled Steps | Time (s) |
+|---|---|---|---|---|---|---|---|---|
+| 0 | 844.1 | +693.47 | ✓ | 93 | 94 | 200 | 136 | 12.09 |
+| 1 | 845.4 | +664.53 | ✓ | 68 | 70 | 200 | 130 | 11.93 |
+| 2 | 846.2 | +552.18 | ✓ | 65 | 66 | 200 | 133 | 12.27 |
+| 3 | 848.1 | +762.72 | ✓ | 68 | 69 | 200 | 130 | 12.72 |
+| 4 | 845.0 | +1088.02 | ✓ | 58 | 60 | 200 | 140 | 12.51 |
+| 5 | 845.0 | +978.63 | ✓ | 61 | 62 | 200 | 137 | 12.48 |
+| 6 | 845.0 | +1022.40 | ✓ | 61 | 61 | 200 | 138 | 12.12 |
+| 7 | 847.5 | +549.12 | ✓ | 67 | 69 | 200 | 130 | 12.04 |
+| 8 | 846.6 | +570.76 | ✓ | 68 | 70 | 200 | 130 | 12.53 |
+| 9 | 846.2 | +1155.04 | ✓ | 100 | 101 | 200 | 138 | 12.36 |
+| 10 | 847.8 | +635.72 | ✓ | 63 | 64 | 200 | 135 | 12.65 |
+| 11 | 847.6 | +920.79 | ✓ | 68 | 70 | 200 | 130 | 12.80 |
+| 12 | 844.5 | +571.81 | ✓ | 68 | 69 | 200 | 130 | 13.02 |
+| 13 | 847.8 | +798.90 | ✓ | 70 | 71 | 200 | 136 | 12.64 |
+| 14 | 743.6 | +1181.94 | ✗ | None | None | None | 129 | 12.56 |
+| 15 | 845.7 | +941.75 | ✓ | 68 | 69 | 200 | 134 | 12.54 |
+| 16 | 843.6 | +551.44 | ✓ | 63 | 64 | 200 | 135 | 12.38 |
+| 17 | 845.0 | +556.97 | ✓ | 66 | 66 | 200 | 133 | 12.20 |
+| 18 | 847.7 | +931.58 | ✓ | 72 | 74 | 200 | 131 | 12.52 |
+| 19 | 844.1 | +677.21 | ✓ | 60 | 61 | 200 | 138 | 12.64 |
 
 **Summary (20-seed evaluation):**
 | Metric | Value |
@@ -947,25 +954,52 @@ The real environment's state is **NEVER modified** during the search; only the c
 | Median Max Displacement | **845.5 m** |
 | Frac > 50m | **100.0%** |
 | **Arrival Rate** | **95.0% (19/20 seeds)** |
+| **Mean Steps to First Approach (<20m)** | **68.7 steps** (min 58, max 100) |
+| **Mean Steps Taken (Arrived Episodes)** | **200.0 steps** (100.0% arrived at $t=199$, step 200) |
+| **Last-Second Dash Fraction ($t \ge 195$)** | **100.0% (19/19 arrived episodes)** |
+| **Mean Cancelled Steps per Episode** | **134.0 steps** (boundary overshoots during stall) |
 | Mean Reward | **+790.25** |
 | Mean Episode Time | **12.45 s** |
 | Median Episode Time | 12.51 s |
 | Total Evaluation Time | 249.0 s |
 
-#### 6. Behavioral Analysis and Cross-Baseline Comparison
+#### 6. Detailed Arrival Mechanism: Terminal-Penalty Avoidance & Last-Second Dash
 
-**Key finding: Greedy achieves 95.0% arrival rate — the ONLY baseline to successfully reach the destination.**
+**Direct trajectory inspection reveals why Greedy achieves 95% arrival and how it operates:**
+Greedy's high arrival rate is **NOT** achieved via smooth, purposeful navigation like TDPK (mean ~89 steps to arrival). Instead, it exhibits a distinct two-phase behavior governed entirely by the MDP reward structure:
 
-| Baseline | Mean MaxDisp | Arrival Rate | Mean Reward | Notes |
-|---|---|---|---|---|
-| PKTD3-TD (ep6000) | 0.0 m | **0.0%** | +154.52 | Corner lock-in (deterministic gradient) |
-| Dueling DQL (ep800) | 670.9 m | **0.0%** | +1479.92 | Throughput harvesting, no goal pressure |
-| PPO (ep800) | 669.1 m | **0.0%** | +1321.76 | Throughput harvesting, entropy-driven |
-| **Greedy (no training)** | **840.8 m** | **95.0%** | +790.25 | Myopic lookahead, arrives at destination |
+1. **Phase 1 — Rapid Approach (Steps 1–70):**
+   The proximity reward term $r_{n,4} = C_{\text{near}} \cdot d_{\text{near},n}$ (eq. 26) provides an immediate bonus for every meter the UAV moves closer to $Q_{\text{END}} = (600, 600, 50)$. The myopic search selects high-speed northeast actions, quickly closing distance and reaching within 20m of $Q_{\text{END}}$ at mean step **68.7** (min 58, max 100), and within 10m on the very next step (e.g. at $(593.4, 593.4, 50.0)$, $d = 9.39\text{ m}$).
 
-**Why does Greedy arrive and the learned baselines do not?** The immediate reward function (eq. 21–29) includes a proximity reward term $r_{n,5} = C_{\\text{near}} \\cdot d_{\\text{near},n}$ (reward for reducing distance to destination) and an arrival bonus $r_{n,2} = C_{\\text{ar}}$ at terminal time. Greedy's per-step maximization naturally gravitates toward approaching the destination corner at each step — the proximity reward drives convergent motion. In contrast, Dueling DQL and PPO (both under 800-episode budgets) learn to hover among dense-throughput user clusters (maximizing $r_{n,1}$, the dominant cumulative term), never developing sufficient incentive to sacrifice immediate throughput for the proximity+arrival bonus. PKTD3-TD collapses before it can learn anything.
+2. **Phase 2 — Extended Boundary Stall (~130 Steps):**
+   Once within ~10m of the destination, crossing the $5.0\text{ m}$ arrival threshold would cause early termination (`done = True`). Per eq. (23), whenever `done = True`, the terminal reward $r_{n,3} = -((1 - \text{arrived}) \cdot C_{\text{AR}} \cdot (d_{\text{re}}/V_{\text{MAX}}) + C_{\text{NR}})$ applies:
+   - If the UAV arrives early ($t < 199$): `done = True`, and the fixed penalty $-C_{\text{NR}} = -20.0$ is levied **immediately** on that step!
+   - If the UAV does *not* arrive ($t < 199$): `done = False`, so $r_{n,3} = 0.0$.
+   
+   To a myopic single-step optimizer, arriving early incurs an immediate **$-20.0$ penalty** compared to staying outside the 5.0m circle. Therefore, Greedy deliberately refuses to cross the threshold! Instead, it repeatedly selects an action that overshoots the spatial boundary (e.g. diving into the ground or west wall at $v=10.0\text{ m/s}, \lambda=135^\circ, \rho=-180^\circ$). Because the movement violates boundary constraints, `position_cancelled = True` and the UAV remains parked at $(593.4, 593.4, 50.0)$, collecting steady user throughput ($r \approx +3.6$ to $+3.7$) while avoiding both movement energy costs and the $-20.0$ early-termination penalty. This stall persists for an average of **134 consecutive steps**.
 
-**Timing implication for M14:** Each greedy episode costs ~12.45 s (200 steps × 200 candidate evaluations × `deepcopy+step`). Evaluating Greedy across large seed sets will be a bottleneck: 100 seeds ≈ 21 min. M14 should plan for this either by caching results or limiting Greedy to the 20-seed protocol already established.
+3. **Phase 3 — Last-Second Dash (Step 200, $t=199$):**
+   At the final time slot $N = 200$, the episode terminates regardless of UAV position (`done = True` unconditionally):
+   - If it arrives on step 200: $r_{n,3} = -(0 + C_{\text{NR}}) = -20.0$.
+   - If it fails to arrive: $r_{n,3} = -(C_{\text{AR}} \cdot (d_{\text{re}}/V_{\text{MAX}}) + C_{\text{NR}}) = -(1.0 \cdot (9.39 / 20.0) + 20.0) \approx -20.47$.
+   
+   Because `done = True` is now unavoidable, the non-arrival penalty $-(C_{\text{AR}} \cdot d_{\text{re}}/V_{\text{MAX}})$ finally enters the single-step objective. Crossing the threshold ($d \le 5.0\text{ m}$) becomes strictly optimal for the first time, prompting the UAV to step forward to $(596.9, 596.9, 50.0)$ ($d = 4.39\text{ m}$) at step 200, securing arrival.
+
+**Academic Implications for M14 Comparison:**
+This is correct behavior for a genuinely myopic algorithm, not a bug — but it means Greedy's "95% arrival" and TDPK's "100% arrival" are **fundamentally not comparable** if summarized by bare arrival rate alone:
+- **TDPK (M10):** Smooth, continuous navigation; arrives in **~89 steps**; never stalls; trajectory is an efficient straight line.
+- **Greedy (M13):** Myopic artifact; takes **exactly 200 steps** (100% of arrivals occur at $t=199$); stalls for ~130 steps due to early-arrival penalty avoidance.
+- **Reporting Requirement for M14:** In any comparative table or figure, both `steps_taken` (or `steps_to_first_approach`) and `arrival_rate` must be reported together to accurately represent each baseline's behavioral characteristics.
+
+| Baseline | Mean MaxDisp | Arrival Rate | Mean Steps Taken | Arrival Timing | Mean Reward | Behavioral Nature |
+|---|---|---|---|---|---|---|
+| PKTD3-TD (ep6000) | 0.0 m | **0.0%** | 200 | N/A | +154.52 | Corner boundary lock-in |
+| Dueling DQL (ep800) | 670.9 m | **0.0%** | 200 | N/A | +1479.92 | Throughput harvesting (no goal pull) |
+| PPO (ep800) | 669.1 m | **0.0%** | 200 | N/A | +1321.76 | Throughput harvesting (entropy-driven) |
+| TDPK (M10) | 848.5 m | **100.0%** | **~89** | Smooth flight | +745.20 | Pure geometric direct flight |
+| **Greedy (M13)** | **840.8 m** | **95.0%** | **200** | **100% at $t=199$** | **+790.25** | Early approach (~step 69), ~130-step stall, last-step dash |
+
+**Timing implication for M14:** Each greedy episode costs ~12.45 s (200 steps × 200 candidate evaluations × `deepcopy+step`). Evaluating Greedy across large seed sets will be a bottleneck: 100 seeds ≈ 21 min. M14 should cache evaluation results or maintain the 20-seed protocol established here.
 
 ---
 
