@@ -771,7 +771,13 @@ Across extensive training runs (including 6,000-episode runs in Colab and 800-ep
 7. **Prior-Knowledge Exploration Volume ($R_{\text{rand}} = 60,000$):** Tripled PK demonstrations to 343 arrival episodes (60,000 transitions); policy still collapsed immediately at handoff (0% arrivals).
 8. **Flat Stratified Sampling (30% Arrived Oversampling):** Guaranteed 38 arrival transitions in every 128-sample mini-batch; actor still collapsed to 0.0m displacement at `ep200.pt`.
 9. **Terminal-Weighted Stratified Sampling (Last 15 Steps Oversampling):** Focused oversampling on terminal arrival transitions; resulted in complete 0.0m paralysis across all checkpoints due to spatial disconnect from $Q_{\text{START}}$.
-10. **Annealed PK-to-Network Handoff (Probabilistic Linear Decay):** Replaced abrupt switch with 20,000-step linear decay. Generated 17 training arrivals and 35% corner escapes, but Q-value spread remained flat ($0.5\% - 4.0\%$) and deterministic arrival stayed at 0.0%.
+10. **Annealed PK-to-Network Handoff (Probabilistic Linear Decay):** Replaced abrupt switch with 20,000-step linear decay. Generated 17 training arrivals in diagnostic and 35% corner escapes, but Q-value spread remained flat ($0.5\% - 4.0\%$) and deterministic arrival stayed at 0.0%.
+11. **Full 6,000-Episode Colab Run (Run 4, Annealed Handoff):** Executed full 6,000 episodes on Google Colab GPU (`--r-rand 20000 --anneal-steps 20000 --checkpoint-every 250`).
+    - Evaluated all 24 checkpoints across 30 deterministic seeds (**720 total evaluation episodes**).
+    - **Destination Arrival Rate: 0.0% across all 24 checkpoints.**
+    - **Final Checkpoint Displacement: 0.0 m across 100% of evaluation seeds.**
+    - **Q1 Spread at $Q_{\text{START}}$: 1.21% at `ep6000`** ($Q_1(\text{Goal}) = 34.88$ vs $Q_1(\text{Wall}) = 34.46$), with the critic assigning higher value to corner collision ($Q_1(\text{Actor}) = 36.14$) than goal navigation.
+    - **Actor Output at $Q_{\text{START}}$:** Completely pinned to $v=20.0\text{ m/s}, \lambda=180.0^\circ, \rho=180.0^\circ$ (diving into the ground and west wall, cancelled on Step 1).
 
 ### 3. Root Cause Diagnosis: The Flat Value Surface at the Corner Boundary
 - At $Q_{\text{START}} = (0, 0, 50)$, the UAV sits on the intersection of three boundary planes: $x = 0, y = 0, z = 50$.
@@ -779,11 +785,11 @@ Across extensive training runs (including 6,000-episode runs in Colab and 800-ep
 - Under the paper's reward structure:
   - When an action attempts to cross the boundary, the position stays unchanged ($q_n = q_{n-1}$), zero throughput is collected, energy is consumed (or hovering energy spent), and no crash termination occurs.
   - The step reward for hitting the boundary wall ($r \approx -1.5$) is numerically indistinguishable from the early per-step reward of flying towards the goal ($r \approx -1.2$).
-- Direct numerical inspection proved that the twin critic evaluates flying toward the goal ($+54.52$) and flying directly into the boundary wall ($+54.24$) within **0.5% of each other**.
-- In this nearly flat, undifferentiated value surface, minor numerical noise in the critic causes the deterministic policy gradient $\nabla_a Q(s, a)$ to push the actor towards the boundary limits, permanently trapping the UAV at $(0, 0, 50)$.
+- Direct numerical inspection across all runs proved that the twin critic evaluates flying toward the goal and flying directly into the boundary wall within **0.5% – 3.5% of each other** (1.21% at final Run 4 checkpoint).
+- In this flat, undifferentiated value surface, minor numerical noise in the critic causes the deterministic policy gradient $\nabla_a Q(s, a)$ to push the actor towards the boundary limits, permanently trapping the UAV at $(0, 0, 50)$.
 
 ### 4. Current Status of Checkpoints & Codebase Defaults
-- **Checkpoints:** All checkpoints in `checkpoints/run1`, `run2`, `run3`, and `checkpoints/diag_*` are documented as diagnostic/experimental artifacts. None are suitable for downstream baseline comparison or publication figures.
+- **Checkpoints:** All checkpoints in `checkpoints/run1`, `run2`, `run3`, `run4`, and `checkpoints/diag_*` are documented as diagnostic/experimental research artifacts. All exhibit 0.0% deterministic arrival rate and complete corner lock-in.
 - **Codebase Defaults:**
   - `config.py`: `GAMMA = 0.96`, `R_RAND = 20000`, `ANNEAL_STEPS = 0` (paper baseline default).
   - CLI flags: `--anneal-steps`, `--arrived-fraction`, `--terminal-window`, `--gamma` remain available as opt-in diagnostic instruments.

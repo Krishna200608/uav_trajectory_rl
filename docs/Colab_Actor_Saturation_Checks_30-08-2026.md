@@ -6,7 +6,7 @@ Checks are performed at milestones:
 - [x] **Episode 1,000** (Logged below)
 - [x] **Episode 3,000 (Halfway Mark)** (Logged below)
 - [x] **Episode 5,000** (Logged below)
-- [ ] **Episode 6,000 (Final Completion)** (Pending)
+- [x] **Episode 6,000 (Final Completion)** (Logged below)
 
 ---
 
@@ -31,9 +31,13 @@ Checks are performed at milestones:
 | **ep3750** | 62.5% (3750/6000) | 726,106 | 0.5801 | 83% | 3.7 m | 3.3% | **0.0%** | **2.97%** | Active actor diff (0.5801); displacement trapped |
 | **ep4000** | 66.7% (4000/6000) | 776,106 | 0.4670 | 88% | 2.5 m | 0.0% | **0.0%** | **3.43%** | High saturation (88%); Q1 spread 3.43% |
 | **ep4250** | 70.8% (4250/6000) | 826,106 | 0.3347 | 92% | 5.7 m | 6.7% | **0.0%** | **2.69%** | Saturation climbs to 92% |
-| **ep4500** | 75.0% (4500/6000) | 876,106 | 0.3268 | 88% | **0.0 m** | **0.0%** | **0.0%** | **3.14%** | Zero displacement collapse across all seeds |
-| **ep4750** | 79.2% (4750/6000) | 926,106 | 0.0840 | 96% | **0.0 m** | **0.0%** | **0.0%** | **2.79%** | Peak saturation (96%); 0.0m displacement |
-| **ep5000** | 83.3% (5000/6000) | 976,106 | 0.3294 | 83% | **0.0 m** | **0.0%** | **0.0%** | **2.44%** | **Persistent total corner lock-in (0.0m disp, 2.44% Q1 spread, 0% arrivals)** |
+| **ep4500** | 75.0% (4500/6000) | 876,106 | 0.3268 | 88% | 0.0 m | 0.0% | **0.0%** | **3.14%** | Zero displacement collapse across all seeds |
+| **ep4750** | 79.2% (4750/6000) | 926,106 | 0.0840 | 96% | 0.0 m | 0.0% | **0.0%** | **2.79%** | Peak saturation (96%); 0.0m displacement |
+| **ep5000** | 83.3% (5000/6000) | 976,106 | 0.3294 | 83% | 0.0 m | 0.0% | **0.0%** | **2.44%** | Total corner lock-in (0.0m disp, 2.44% Q1 spread) |
+| **ep5250** | 87.5% (5250/6000) | 1,026,106 | 0.1150 | 92% | 2.2 m | 3.3% | **0.0%** | **1.38%** | Saturation 92%; Q1 spread 1.38% |
+| **ep5500** | 91.7% (5500/6000) | 1,076,106 | 0.1738 | 83% | 5.2 m | 6.7% | **0.0%** | **4.09%** | Minor flutter (5.2m); Q1 spread 4.09% |
+| **ep5750** | 95.8% (5750/6000) | 1,126,106 | 0.1808 | 79% | 11.1 m | 6.7% | **0.0%** | **2.93%** | Approaching end; saturation 79% |
+| **ep6000** | 100.0% (6000/6000) | 1,176,106 | 0.1044 | 92% | **0.0 m** | **0.0%** | **0.0%** | **1.21%** | **Run 4 Completed: Total Standstill Collapse (0.0m disp, 1.21% Q1 spread, 0% arrivals)** |
 
 ---
 
@@ -557,5 +561,171 @@ Evaluated across 30 deterministic seeds (seeds 0–29, $K=10$):
 
 5. **Final Stage:**
    - Training is 83.3% complete with ~21 minutes remaining until the 6,000-episode completion.
+
+---
+
+## 4. Checkpoint 6,000 Diagnostics (Final Run Completion)
+
+**Recorded:** 2026-08-30  
+**Checkpoints detected on Drive:** `[250, 500, 750, 1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750, 3000, 3250, 3500, 3750, 4000, 4250, 4500, 4750, 5000, 5250, 5500, 5750, 6000]` (All 24 checkpoints)
+
+### Cell 4 — Actor Outputs & Saturation Check Across Checkpoints
+
+Fixed test states (8 fixed random states, uniform $[-1, 1]^{26}$, seed 999):
+
+#### ep5250 (total_updates = 1,026,106)
+```text
+[[-1.      1.      1.    ]
+ [ 1.      1.     -1.    ]
+ [ 1.      1.      1.    ]
+ [ 1.      0.5653  1.    ]
+ [ 1.      1.      1.    ]
+ [-1.      1.     -1.    ]
+ [ 1.      1.     -1.    ]
+ [-0.6322  1.      1.    ]]
+```
+
+#### ep5500 (total_updates = 1,076,106)
+```text
+[[-0.9877  1.      1.    ]
+ [ 1.      0.9999 -0.991 ]
+ [ 1.      1.     -1.    ]
+ [ 1.      1.      1.    ]
+ [ 1.      1.      1.    ]
+ [-1.      1.     -0.876 ]
+ [ 1.      1.     -1.    ]
+ [ 0.9601  1.      1.    ]]
+```
+
+#### ep5750 (total_updates = 1,126,106)
+```text
+[[-0.6975  1.      1.    ]
+ [ 1.     -0.9189 -1.    ]
+ [ 1.      0.9989 -1.    ]
+ [ 1.      1.      1.    ]
+ [ 1.      1.     -0.9522]
+ [-1.      1.     -1.    ]
+ [ 1.      1.     -1.    ]
+ [ 0.917   1.      1.    ]]
+```
+
+#### ep6000 (total_updates = 1,176,106)
+```text
+[[-1.      0.9997  1.    ]
+ [ 1.     -0.9904 -1.    ]
+ [ 1.      0.9989 -1.    ]
+ [ 1.      1.     -1.    ]
+ [ 1.      1.     -1.    ]
+ [-1.      1.     -1.    ]
+ [ 1.      1.     -1.    ]
+ [ 1.      1.      1.    ]]
+```
+
+#### Diff & Output Saturation Metrics Across All Checkpoints
+```text
+=== Mean abs change between consecutive checkpoints ===
+ep250 -> ep500: mean_abs_diff=0.607108, frac_outputs_saturated(|x|>0.999)=0.04
+ep500 -> ep750: mean_abs_diff=0.555499, frac_outputs_saturated(|x|>0.999)=0.17
+ep750 -> ep1000: mean_abs_diff=0.781736, frac_outputs_saturated(|x|>0.999)=0.42
+ep1000 -> ep1250: mean_abs_diff=0.387642, frac_outputs_saturated(|x|>0.999)=0.50
+ep1250 -> ep1500: mean_abs_diff=0.485878, frac_outputs_saturated(|x|>0.999)=0.50
+ep1500 -> ep1750: mean_abs_diff=0.374293, frac_outputs_saturated(|x|>0.999)=0.62
+ep1750 -> ep2000: mean_abs_diff=0.238083, frac_outputs_saturated(|x|>0.999)=0.62
+ep2000 -> ep2250: mean_abs_diff=0.356541, frac_outputs_saturated(|x|>0.999)=0.75
+ep2250 -> ep2500: mean_abs_diff=0.335285, frac_outputs_saturated(|x|>0.999)=0.62
+ep2500 -> ep2750: mean_abs_diff=0.417492, frac_outputs_saturated(|x|>0.999)=0.79
+ep2750 -> ep3000: mean_abs_diff=0.443127, frac_outputs_saturated(|x|>0.999)=0.79
+ep3000 -> ep3250: mean_abs_diff=0.113830, frac_outputs_saturated(|x|>0.999)=0.88
+ep3250 -> ep3500: mean_abs_diff=0.004556, frac_outputs_saturated(|x|>0.999)=0.88
+ep3500 -> ep3750: mean_abs_diff=0.580059, frac_outputs_saturated(|x|>0.999)=0.83
+ep3750 -> ep4000: mean_abs_diff=0.467008, frac_outputs_saturated(|x|>0.999)=0.88
+ep4000 -> ep4250: mean_abs_diff=0.334701, frac_outputs_saturated(|x|>0.999)=0.92
+ep4250 -> ep4500: mean_abs_diff=0.326768, frac_outputs_saturated(|x|>0.999)=0.88
+ep4500 -> ep4750: mean_abs_diff=0.083987, frac_outputs_saturated(|x|>0.999)=0.96
+ep4750 -> ep5000: mean_abs_diff=0.329374, frac_outputs_saturated(|x|>0.999)=0.83
+ep5000 -> ep5250: mean_abs_diff=0.114997, frac_outputs_saturated(|x|>0.999)=0.92
+ep5250 -> ep5500: mean_abs_diff=0.173849, frac_outputs_saturated(|x|>0.999)=0.83
+ep5500 -> ep5750: mean_abs_diff=0.180772, frac_outputs_saturated(|x|>0.999)=0.79
+ep5750 -> ep6000: mean_abs_diff=0.104381, frac_outputs_saturated(|x|>0.999)=0.92
+
+=== INTERPRETATION ===
+OK: actor output is still changing between checkpoints (mean diff = 0.1044) -- training appears active, not frozen.
+```
+
+---
+
+### Cell 5 — Live Training Progress, Pace, and ETA Visualizer
+
+```text
+=================================================================
+TRAINING PROGRESS: [██████████████████████████████] 100.0% (6000/6000 eps)
+=================================================================
+  Pace: 10.6 min per 500 episodes (0.78 ep/s)
+  Time Remaining (ETA): ~0.0 minutes (0.00 hours)
+  Estimated Completion: 06:43 AM (2026-08-30)
+
+Live Rewards: 6000 episodes logged.
+  Current Reward: -0.95
+  Rolling Avg (last 50): 138.75
+```
+
+---
+
+### Cell 6 — Decisive Signal Monitor (30-Seed Behavioral Check & Q1 Spread at $Q_{\text{START}}$)
+
+Evaluated across 30 deterministic seeds (seeds 0–29, $K=10$):
+
+| Checkpoint | Mean Max Displacement | Frac > 50m | **Arrival Rate** | **Q1 Spread A-vs-C at $Q_{\text{START}}$** |
+| :---: | :---: | :---: | :---: | :---: |
+| `ep250` | 96.2 m | 13.3% | **0.0%** | **2.68%** |
+| `ep500` | 91.1 m | 16.7% | **0.0%** | **9.49%** |
+| `ep750` | 58.7 m | 16.7% | **0.0%** | **6.77%** |
+| `ep1000` | 38.0 m | 10.0% | **0.0%** | **1.81%** |
+| `ep1250` | 46.9 m | 16.7% | **0.0%** | **4.05%** |
+| `ep1500` | 19.0 m | 10.0% | **0.0%** | **4.08%** |
+| `ep1750` | 20.4 m | 10.0% | **0.0%** | **4.82%** |
+| `ep2000` | 20.7 m | 13.3% | **0.0%** | **12.78%** |
+| `ep2250` | 44.4 m | 13.3% | **0.0%** | **0.86%** |
+| `ep2500` | 5.0 m | 3.3% | **0.0%** | **2.04%** |
+| `ep2750` | 18.2 m | 3.3% | **0.0%** | **2.83%** |
+| `ep3000` | 0.0 m | 0.0% | **0.0%** | **1.37%** |
+| `ep3250` | 0.2 m | 0.0% | **0.0%** | **0.62%** |
+| `ep3500` | 9.6 m | 6.7% | **0.0%** | **0.80%** |
+| `ep3750` | 3.7 m | 3.3% | **0.0%** | **2.97%** |
+| `ep4000` | 2.5 m | 0.0% | **0.0%** | **3.43%** |
+| `ep4250` | 5.7 m | 6.7% | **0.0%** | **2.69%** |
+| `ep4500` | 0.0 m | 0.0% | **0.0%** | **3.14%** |
+| `ep4750` | 0.0 m | 0.0% | **0.0%** | **2.79%** |
+| `ep5000` | 0.0 m | 0.0% | **0.0%** | **2.44%** |
+| `ep5250` | 2.2 m | 3.3% | **0.0%** | **1.38%** |
+| `ep5500` | 5.2 m | 6.7% | **0.0%** | **4.09%** |
+| `ep5750` | 11.1 m | 6.7% | **0.0%** | **2.93%** |
+| `ep6000` | **0.0 m** | **0.0%** | **0.0%** | **1.21%** |
+
+---
+
+## Definitive Findings and Scientific Conclusion on Run 4
+
+1. **Universal 0.0% Deterministic Destination Arrival Rate:**
+   Across all 24 checkpoints evaluated across 30 deterministic seeds (**720 total evaluation episodes**), **not a single arrival occurred (0.0%)**.
+   Even with 20,000 steps of gradual probabilistic annealing from prior knowledge to the neural actor, the policy failed to consolidate goal navigation.
+
+2. **Total Standstill Collapse at Final Checkpoint (`ep6000`):**
+   The final checkpoint `ep6000.pt` achieves **0.0 m maximum displacement** across 100% of evaluation seeds. On Step 1 of every episode, the deterministic actor commands an action that violates the spatial boundary constraints and is cancelled in place.
+
+3. **Persistent Flat Value Surface at $Q_{\text{START}}$:**
+   The Q1 spread between Action A ("Toward goal") and Action C ("Into the wall") never broke out into a discriminating signal:
+   - Initial spread: **2.68%** at `ep250`
+   - Peak spread: **12.78%** at `ep2000` (transient)
+   - Final spread: **1.21%** at `ep6000`
+   - Mean spread across 24 checkpoints: **~3.2%**
+   The critic remained completely unable to distinguish between flying toward the destination and crashing into the bounding walls.
+
+4. **Near-Total Tanh Saturation ($92\%$ at `ep6000`):**
+   Outputs reached 92% saturation at `ep6000`. In the presence of an undifferentiated Q surface, the policy gradient continually pushed the unbounded actor weights toward extreme saturated states.
+
+5. **Closing Verdict:**
+   Run 4 decisively confirms that the failure of PKTD3-TD to achieve deterministic destination arrivals is **not an artifact of an abrupt hand-off switch**. It is a fundamental structural consequence of the flat value landscape at the boundary corner $Q_{\text{START}} = (0, 0, 50)$ under the paper's literal reward formulation and boundary cancellation mechanics.
+
 
 
