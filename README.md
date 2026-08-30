@@ -110,6 +110,8 @@ uav_trajectory_rl/
 |       |-- __init__.py                 # Package root
 |       |-- baselines/                  # Evaluation baseline algorithms (M10-M13)
 |       |   |-- __init__.py
+|       |   |-- dueling_dql.py              # Dueling DQL discrete Q-learning baseline (M11)
+|       |   |-- ppo.py                      # PPO Gaussian-policy continuous baseline (M12)
 |       |   \-- tdpk.py                 # Prior-knowledge direct flight baseline (M10)
 |       |-- channel_model.py            # LoS/NLoS path loss and Shannon rate (eq. 8-14)
 |       |-- config.py                   # System constants, physical bounds, and RL parameters
@@ -127,6 +129,7 @@ uav_trajectory_rl/
     ├── test_energy_model.py            # Power components and hovering energy tests
     ├── test_mdp_environment.py         # State dimensionality and MDP transition tests
     ├── test_prior_knowledge_policy.py  # Action generation, un-normalization, and dispatch tests
+    ├── test_ppo.py                      # PPO Gaussian policy, GAE hand-verification, clipped surrogate tests
     ├── test_td3_agent.py               # Target computation, delayed updates, and checkpointing tests
     ├── test_td3_networks.py            # Actor bounds, twin-critic equality, and buffer overwrite tests
     ├── test_train_smoke.py             # End-to-end smoke test for training loop execution
@@ -152,7 +155,7 @@ uav_trajectory_rl/
 - [x] M9 -- Training loop (Algorithm 1; component-verified, convergence NOT achieved across runs 1–4; investigation closed, see docs/PKTD3-TD_Tracker.md)
 - [x] M10 -- Baseline: TDPK
 - [x] M11 -- Baseline: Dueling DQL
-- [ ] M12 -- Baseline: PPO
+- [x] M12 -- Baseline: PPO (Gaussian policy, GAE-Lambda, PPO-Clip; implemented -- pending review)
 - [ ] M13 -- Baseline: Greedy
 - [ ] M14 -- Evaluation and plotting suite (Figs. 4-12, Tables IV-VI)
 
@@ -171,8 +174,8 @@ uav_trajectory_rl/
 | M8 | `td3_agent.py` | Clipped double-Q and target smoothing (eq. 32-38) | Done (reviewed, approved) |
 | M9 | `scripts/train.py` | Training loop (Algorithm 1) | Implemented & component-verified (M0–M8 hand-verified); full convergence NOT achieved across runs 1–4 (flat value surface at Q_START); investigation closed, see docs/PKTD3-TD_Tracker.md |
 | M10 | `baselines/tdpk.py` | Baseline: TDPK (direct-to-destination flight) | Done (reviewed, approved) |
-| M11 | `baselines/dueling_dql.py` | Baseline: Dueling DQL (discrete 200-action Q-learning) | Implemented -- pending review (50 unit tests passing) |
-| M12-M13 | Baselines | PPO, Greedy | In progress / scheduled next |
+| M11 | `baselines/dueling_dql.py` | Baseline: Dueling DQL (discrete 200-action Q-learning) | Implemented -- pending review (57 unit tests passing) |
+| M12 | `baselines/ppo.py` | Baseline: PPO (Gaussian policy, GAE-Lambda, PPO-Clip, rollout-based) | Implemented -- pending review (57 unit tests passing, 800-ep diagnostic done) |
 | M14 | Evaluation | Plotting suite (Figs. 4-12, Tables IV-VI) | Scheduled next |
 
 Full parameter grounding, paper corrections, and review notes: [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md)

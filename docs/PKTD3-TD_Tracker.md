@@ -98,7 +98,7 @@ Algorithm 1, line 15, lists `r_n = r_n,1+r_n,2+r_n,3+r_n,4+r_n,5` — **omits r_
 | M9 | Training loop / full Algorithm 1 | M5, M6, M7, M8 | **Implemented & component-verified (M0–M8 hand-verified); full convergence NOT achieved across runs 1–4 (flat value surface at Q_START); investigation closed, see Review notes** |
 | M10 | Baseline: TDPK | M5 | **Done — reviewed, approved (geometry hand-verified: diagonal, vertical, and degenerate same-point cases all match spec exactly)** |
 | M11 | Baseline: Dueling DQL | M5 | **Implemented — pending review (200-action grid, dueling architecture, discrete replay buffer, training loop)** |
-| M12 | Baseline: PPO | M5 | Not started |
+| M12 | Baseline: PPO | M5 | **Implemented — pending review (Gaussian policy, GAE-Lambda, PPO-Clip, rollout-based training)** |
 | M13 | Baseline: Greedy | M5 | Not started |
 | M14 | Evaluation & plotting suite (Figs. 4–12, Tables IV–VI) | M9–M13 | Not started |
 
@@ -809,6 +809,84 @@ Helper functions `discrete_action_to_physical` and `physical_to_nearest_discrete
 
 ---
 
+## M12 — PPO Baseline (`src/uav_trajectory_rl/baselines/ppo.py`)
+
+**Status: Implemented — pending review**
+
+#### 1. Context and Paper Reference
+The IEEE TNSE reference paper evaluates PPO [44] as a continuous-action benchmark:
+> *"PPO [44]: The PPO algorithm is used for UAV 3D trajectory planning with the same state and reward settings as the proposed method. At each time slot, the agent generates continuous control actions to update the UAV's flight direction and speed based on the learned policy."*
+
+Unlike Dueling DQL (M11), PPO operates in the **same continuous action space as PKTD3-TD** — no discretization. The normalized $[-c, c]^3$ action convention and `unnormalize_action` mapping are reused unchanged. Reference [44] (Schulman et al., 2017) does not specify architecture or hyperparameters for this domain; all choices are documented below as explicit **DESIGN DECISIONS**.
+
+#### 2. Architecture Design Decisions
+- **Separate Actor and Critic Networks** (DESIGN DECISION: avoids interference between policy gradient and value regression objectives on a shared representation; simpler to tune than a shared trunk).
+- **PPOActor — Gaussian policy:** `state_dim → Linear(256) → ReLU → Linear(256) → ReLU → mean (Linear, 3)`, plus a state-independent learnable `log_std` parameter of shape `(3,)`, initialized to `log(0.5)` (initial std = 0.5, moderate exploration over the $[-1, 1]^3$ space). DESIGN DECISION matching OpenAI Baselines / SpinningUp practice.
+- **Unsquashed Gaussian mean output** (plain Linear, no tanh): DESIGN DECISION to avoid tanh log-prob correction complexity. Sampled actions are clipped to $[-c, c]$ at execution; log-probs are computed on unclipped samples. Known mild bias documented in module docstring.
+- **PPOCritic — State-value network:** `state_dim → Linear(256) → ReLU → Linear(256) → ReLU → Linear(1)`. Takes only the state as input (NOT $Q(s,a)$ — architecturally distinct from TD3's critic).
+- **Combined single Adam optimizer** over both actor and critic parameters (DESIGN DECISION: logistically simpler; equivalent to separate optimizers with the same LR, which is the case here with LR = 1e-4 from config).
+
+#### 3. GAE-Lambda Rollout Buffer (DESIGN DECISION)
+- **Rollout length: 2,048 steps** (standard PPO default, Schulman et al., 2017 / OpenAI Baselines).
+- **GAE-Lambda: $\lambda = 0.95$** (standard default, not paper-specified).
+- Buffer is filled fresh each update cycle and fully consumed — NOT a circular replay buffer.
+- Advantage normalization (zero mean, unit std) applied across the rollout batch after GAE computation (standard PPO practice for training stability).
+- `last_value` bootstrapping: if rollout ends mid-episode, $V(s_{T+1})$ is estimated from the critic; if ends on a true terminal step, `last_value = 0.0`.
+
+#### 4. PPO-Clip Update (DESIGN DECISIONS)
+- `clip_eps = 0.2`, `value_coef = 0.5`, `entropy_coef = 0.01` (all standard PPO defaults).
+- `update_epochs = 10`, `minibatch_size = 64` (standard defaults).
+- `max_grad_norm = 10.0` (matches `TD3Agent` and `DuelingDQLAgent`).
+- Objective: $L = L_{\text{CLIP}} + 0.5 \cdot L_V - 0.01 \cdot H$, where:
+  $$L_{\text{CLIP}} = -\mathbb{E}\left[\min\left(r_t A_t,\ \text{clip}(r_t, 1 - 0.2, 1 + 0.2) A_t\right)\right]$$
+
+#### 5. Training Loop Structure
+PPO is driven by total environment steps and rollout cycles, NOT individual episodes:
+```
+while total_steps < budget:
+    collect rollout_length=2048 env steps (reset env on episode end mid-rollout)
+    compute_returns_and_advantages(last_value, gamma=0.96, gae_lambda=0.95)
+    for epoch in range(10):  # update_epochs
+        for minibatch of 64 from shuffled rollout:
+            compute PPO-Clip + value + entropy loss
+            gradient step + clip_grad_norm(10.0)
+    repeat
+```
+Episode rewards are logged identically to `scripts/train.py` (to `episode_rewards.npy`) for direct comparability.
+
+#### 6. Step 5 Unit Tests (all 57 pass, `pytest tests/ -v`)
+1. `test_ppo_actor_forward_shape_and_variance`: Forward shapes $(B, 3)$; std $> 0$; stochastic samples differ.
+2. `test_ppo_critic_forward_shape`: Forward shape $(B, 1)$ confirmed.
+3. `test_ppo_deterministic_vs_stochastic`: `select_action_deterministic` repeatable; `select_action` varies.
+4. `test_gae_computation_against_hand_calculation`: **Hand-verified GAE** on 3-step rollout:
+   - `rewards=[1,2,3]`, `values=[0.5,1,1.5]`, all `done=False`, `last_value=2.0`, $\gamma=0.9$, $\lambda=0.8$
+   - Expected raw advantages: $[4.80272, 4.726, 3.3]$ → returns: $[5.30272, 5.726, 4.8]$
+   - Normalized advantages: $[+0.762, +0.651, -1.412]$ — verified to `rtol=1e-4` ✓
+5. `test_ppo_clipped_surrogate_actually_clips`: ratio = 3.0 (> 1.2), advantage = +2.0; clipped loss = −2.4 (not unclipped −6.0) ✓
+6. `test_ppo_update_end_to_end_no_nan`: `update_epochs=3`, `minibatch_size=16`, rollout=32 → `n_updates=6` ✓; all losses finite.
+7. `test_ppo_save_load_roundtrip`: Weights survive save/load cycle.
+
+#### 7. Step 6 Diagnostic Results (800-Episode Equivalent, `seed=0`)
+- **Training Progression** (160,000 total steps, rollout_length=2048):
+  - `ep50`: reward $+742.8$, avg(50) $+756.2$
+  - `ep200`: reward $+948.6$, avg(50) $+852.3$
+  - `ep400`: reward $+1177.1$, avg(50) $+1081.3$
+  - `ep600`: reward $+1126.4$, avg(50) $+1217.6$
+  - `ep800`: reward $+984.5$, avg(50) $+1252.0$
+- **20-Seed Deterministic Behavioral Evaluation (`select_action_deterministic`, Gaussian mean):**
+  | Checkpoint | Mean Max Disp | Median Disp | Frac > 50m | Arrival Rate | Mean Reward |
+  |---|---|---|---|---|---|
+  | `ppo_step40960.pt` (≈ep200) | $489.5\text{ m}$ | $621.1\text{ m}$ | **100.0%** | **0.0%** | $+1144.81$ |
+  | `ppo_step81920.pt` (≈ep400) | $709.8\text{ m}$ | $706.0\text{ m}$ | **100.0%** | **0.0%** | $+1250.00$ |
+  | `ppo_step122880.pt` (≈ep600) | $709.7\text{ m}$ | $714.8\text{ m}$ | **100.0%** | **0.0%** | $+1313.99$ |
+  | `ppo_final.pt` (ep800) | $669.1\text{ m}$ | $672.9\text{ m}$ | **100.0%** | **0.0%** | $+1321.76$ |
+- **Behavioral Analysis:**
+  - **PPO does NOT suffer from corner standstill paralysis:** 100% of seeds escape the corner and achieve large displacements ($>489\text{ m}$ min, up to $>700\text{ m}$ median) across all checkpoints, matching Dueling DQL's behavior.
+  - **Throughput harvesting vs goal arrival trade-off:** PPO's stochastic Gaussian policy naturally explores the service area (entropy-driven, no deterministic gradient cliff). It harvests substantial throughput (mean reward $+1321.76$, comparable to Dueling DQL's $+1479.92$) but does not consistently navigate to $q_e = (600, 600, 50)$ within the 200-step episode budget, resulting in 0.0% arrival rate.
+  - **Comparison to expectation:** The expectation that "PPO's stochastic policy should behave more like Dueling DQL than like TD3" is confirmed. Both DQL and PPO achieve full corner escape (100% Frac>50m) and high throughput rewards, while PKTD3-TD's deterministic policy collapses to 0.0m standstill. The 0.0% arrival rate is shared across all baselines under the 800-episode budget — consistent with the paper's description of PPO as a throughput-balancing method.
+
+---
+
 ## Investigation Summary and Status (Supervisor Standalone Reference)
 
 ### 1. Executive Problem Statement
@@ -846,7 +924,7 @@ Across extensive training runs (including 6,000-episode runs in Colab and 800-ep
 - **Codebase Defaults:**
   - `config.py`: `GAMMA = 0.96`, `R_RAND = 20000`, `ANNEAL_STEPS = 0` (paper baseline default).
   - CLI flags: `--anneal-steps`, `--arrived-fraction`, `--terminal-window`, `--gamma` remain available as opt-in diagnostic instruments.
-  - Test Suite: **All 45 unit tests pass** in 17.03s.
+  - Test Suite: **All 57 unit tests pass** in 14.54s (50 existing + 7 new PPO).
 
 ---
 

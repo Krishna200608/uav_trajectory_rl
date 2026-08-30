@@ -15,6 +15,12 @@ from uav_trajectory_rl.baselines.dueling_dql import (
     discrete_action_to_physical,
     physical_to_nearest_discrete_idx,
 )
+from uav_trajectory_rl.baselines.ppo import (
+    PPOActor,
+    PPOAgent,
+    PPOCritic,
+    RolloutBuffer,
+)
 from uav_trajectory_rl.baselines.tdpk import run_tdpk_episode, tdpk_action
 
 __all__ = [
@@ -25,4 +31,8 @@ __all__ = [
     "DuelingQNetwork",
     "DiscreteReplayBuffer",
     "DuelingDQLAgent",
+    "PPOActor",
+    "PPOCritic",
+    "RolloutBuffer",
+    "PPOAgent",
 ]
