@@ -15,6 +15,7 @@ from uav_trajectory_rl.baselines.dueling_dql import (
     discrete_action_to_physical,
     physical_to_nearest_discrete_idx,
 )
+from uav_trajectory_rl.baselines.greedy import greedy_action, run_greedy_episode
 from uav_trajectory_rl.baselines.ppo import (
     PPOActor,
     PPOAgent,
@@ -35,4 +36,7 @@ __all__ = [
     "PPOCritic",
     "RolloutBuffer",
     "PPOAgent",
+    "greedy_action",
+    "run_greedy_episode",
 ]
+

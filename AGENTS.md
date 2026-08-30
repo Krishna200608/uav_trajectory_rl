@@ -33,7 +33,8 @@ The system is structured as modular, independent mathematical and physical build
   - `tdpk.py`: Implements the Trajectory Design based on Prior Knowledge (TDPK) baseline (eq. from Section V-A: direct-to-destination 3D spherical direction with uniform random speed).
   - `dueling_dql.py`: Dueling DQL baseline (M11) — discrete 200-action Q-network, epsilon-greedy, Polyak soft updates.
   - `ppo.py`: PPO baseline (M12) — Gaussian stochastic policy (PPOActor), state-value critic (PPOCritic), GAE-Lambda rollout buffer (RolloutBuffer), PPO-Clip update with entropy bonus. Continuous action space identical to PKTD3-TD.
-  - Baseline Greedy (`M13`) will reside here. These policies do NOT use the TD3 agent; they are independent heuristics/agents evaluated identically at test time.
+  - `greedy.py`: Greedy baseline (M13) — myopic non-learning heuristic with 200-action candidate lookahead via deep copy; 95% destination arrival rate.
+  - These policies do NOT use the TD3 agent; they are independent heuristics/agents evaluated identically at test time.
 
 ## 4. CONVENTIONS ESTABLISHED IN THIS CODEBASE
 
@@ -48,9 +49,9 @@ Follow these principles without exception:
 ## 5. CURRENT STATE SNAPSHOT
 
 As of the latest repository commits:
-- **Completed Modules (M0–M12):** All core environment primitives, TD3 networks, TD3 agent, prior-knowledge policy, training loop (Algorithm 1), TDPK baseline (M10), Dueling DQL baseline (M11), and PPO baseline (M12) are complete with 57 passing unit tests.
+- **Completed Modules (M0–M13):** All core environment primitives, TD3 networks, TD3 agent, prior-knowledge policy, training loop (Algorithm 1), TDPK baseline (M10), Dueling DQL baseline (M11), PPO baseline (M12), and Greedy baseline (M13) are complete with 60 passing unit tests.
 - **Training-Instability Investigation (CLOSED):** Across 4 full 6,000-episode training runs (`checkpoints/run1/` through `run4/`) and 10 systematic diagnostic rounds, deterministic destination arrival remained strictly 0.0% with policy collapse to the corner boundary. Direct numerical inspection confirmed the root cause: at the initial state $Q_{\text{START}} = (0, 0, 50)$, 87.5% of direction space leads to immediate boundary cancellation, producing an undifferentiated, flat critic value surface (Q-spread $< 4\%$ between goal departure and wall collision) that deterministic policy gradient cannot reliably escape under the paper's literal reward formulation and training budget. Checkpoints in `checkpoints/run1/` through `run4/` are all preserved as empirical records, but **NONE** are used for downstream baseline comparisons.
-- **Current Development Focus (M13–M14):** With M10 (TDPK), M11 (Dueling DQL), and M12 (PPO) implemented, the focus is now on M13 (Greedy heuristic baseline) and M14 (evaluation suite). For comparative trajectory benchmarks, TDPK (M10) and the raw prior-knowledge policy serve as the working comparison points in place of a converged PKTD3-TD policy, with this documented limitation stated plainly in any eventual academic report.
+- **Current Development Focus (M14):** With all four comparison baselines (M10: TDPK, M11: Dueling DQL, M12: PPO, M13: Greedy) fully implemented and diagnostic-verified, the final milestone is M14 (comprehensive evaluation and plotting suite for Figures 4–12 and Tables IV–VI). In comparative benchmarks, TDPK (M10) and Greedy (M13) serve as working trajectory baselines, alongside Dueling DQL (M11) and PPO (M12) as RL throughput baselines.
 
 ## 6. ENVIRONMENT SETUP QUICK REFERENCE
 

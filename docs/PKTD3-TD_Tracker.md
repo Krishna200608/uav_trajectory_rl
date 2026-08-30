@@ -99,7 +99,7 @@ Algorithm 1, line 15, lists `r_n = r_n,1+r_n,2+r_n,3+r_n,4+r_n,5` — **omits r_
 | M10 | Baseline: TDPK | M5 | **Done — reviewed, approved (geometry hand-verified: diagonal, vertical, and degenerate same-point cases all match spec exactly)** |
 | M11 | Baseline: Dueling DQL | M5 | **Implemented — pending review (200-action grid, dueling architecture, discrete replay buffer, training loop)** |
 | M12 | Baseline: PPO | M5 | **Implemented — pending review (Gaussian policy, GAE-Lambda, PPO-Clip, rollout-based training)** |
-| M13 | Baseline: Greedy | M5 | Not started |
+| M13 | Baseline: Greedy | M5 | **Implemented — pending review (200-candidate one-step lookahead, deep-copy design, 95.0% arrival rate)** |
 | M14 | Evaluation & plotting suite (Figs. 4–12, Tables IV–VI) | M9–M13 | Not started |
 
 **Suggested parallelization:** once M0 lands, M1/M2/M3/M4 are mutually independent — good four-way split across the team.
@@ -887,7 +887,90 @@ Episode rewards are logged identically to `scripts/train.py` (to `episode_reward
 
 ---
 
+## M13 — Greedy Baseline (`src/uav_trajectory_rl/baselines/greedy.py`)
+
+**Status: Implemented — pending review**
+
+#### 1. Context and Paper Reference
+The IEEE TNSE reference paper evaluates Greedy [83] as:
+> *"Greedy algorithm [83]: The greedy algorithm makes decisions based on the current system performance. At each time slot, it selects the action that maximizes the immediate objective function to pursue a local optimal solution under the current system state."*
+
+This is a **non-learning, myopic heuristic** — no neural network, no training loop, no replay buffer. At each step it evaluates all candidate actions and picks whichever yields the highest IMMEDIATE (single-step) reward, ignoring all future consequences entirely.
+
+#### 2. Candidate Action Set (DESIGN DECISION)
+The paper does not specify how "the action that maximizes the immediate objective" is searched over a continuous 3D action space. **DESIGN DECISION:** Reuse the same 5×5×8 = 200 discrete action grid defined for M11 (Dueling DQL) via `V_LEVELS`, `LAM_LEVELS`, `RHO_LEVELS`, and `discrete_action_to_physical` from `config.py` / `baselines/dueling_dql.py`. This gives a consistent, finite, and comparable candidate pool across baselines, covering the full (speed, polar, azimuth) product space.
+
+#### 3. One-Step Lookahead via Deep Copy (DESIGN DECISION)
+`UAVTrajectoryEnv.step()` mutates internal state. To evaluate candidate rewards without corrupting the real environment, each of the 200 candidate actions is evaluated by:
+1. Deep-copying the environment (`copy.deepcopy(env)`).
+2. Calling `step()` on the copy to get the immediate reward.
+3. Discarding the copy.
+
+The real environment's state is **NEVER modified** during the search; only the chosen best action is applied via a single real `env.step()` call after the search completes. Tie-breaking: first-encountered maximum action wins (standard scan).
+
+**Trade-off:** 200 deep copies + `step()` calls per real step makes this ~200× more expensive per step than a direct policy. Measured cost: **~12.45 s/episode** (200 steps × 200 copies each). This is intentional and acceptable for a non-training baseline evaluated once over 20 seeds. See timing data below for M14 planning implications.
+
+#### 4. Step 4 Unit Tests (all 60 pass, `pytest tests/ -v`)
+1. `test_greedy_action_chosen_reward_beats_spot_checks`: Greedy reward ≥ 10 randomly sampled candidate rewards (spot-check correctness without re-running the full search).
+2. `test_greedy_action_does_not_mutate_real_env`: **Critical safety test** — verifies that after calling `greedy_action()`, all mutable env fields (`uav_pos`, `uav_speed`, `step_count`, `prev_dist_to_end`, `user_swarm.positions`) are byte-identical to their pre-call values. Passes ✓ — the deep-copy-and-discard design is safe.
+3. `test_run_greedy_episode_structure_and_invariants`: Episode completes without exception; returns correct dict keys; `trajectory.shape == (steps_taken+1, 3)`; `trajectory[0] == Q_START`.
+
+#### 5. Step 5 Diagnostic Results (20 Seeds, k=10, no training required)
+
+| Seed | Max Disp (m) | Reward | Arrived | Time (s) |
+|---|---|---|---|---|
+| 0 | 844.1 | +693.47 | ✓ | 12.09 |
+| 1 | 845.4 | +664.53 | ✓ | 11.93 |
+| 2 | 846.2 | +552.18 | ✓ | 12.27 |
+| 3 | 848.1 | +762.72 | ✓ | 12.72 |
+| 4 | 845.0 | +1088.02 | ✓ | 12.51 |
+| 5 | 845.0 | +978.63 | ✓ | 12.48 |
+| 6 | 845.0 | +1022.40 | ✓ | 12.12 |
+| 7 | 847.5 | +549.12 | ✓ | 12.04 |
+| 8 | 846.6 | +570.76 | ✓ | 12.53 |
+| 9 | 846.2 | +1155.04 | ✓ | 12.36 |
+| 10 | 847.8 | +635.72 | ✓ | 12.65 |
+| 11 | 847.6 | +920.79 | ✓ | 12.80 |
+| 12 | 844.5 | +571.81 | ✓ | 13.02 |
+| 13 | 847.8 | +798.90 | ✓ | 12.64 |
+| 14 | 743.6 | +1181.94 | ✗ | 12.56 |
+| 15 | 845.7 | +941.75 | ✓ | 12.54 |
+| 16 | 843.6 | +551.44 | ✓ | 12.38 |
+| 17 | 845.0 | +556.97 | ✓ | 12.20 |
+| 18 | 847.7 | +931.58 | ✓ | 12.52 |
+| 19 | 844.1 | +677.21 | ✓ | 12.64 |
+
+**Summary (20-seed evaluation):**
+| Metric | Value |
+|---|---|
+| Mean Max Displacement | **840.8 m** |
+| Median Max Displacement | **845.5 m** |
+| Frac > 50m | **100.0%** |
+| **Arrival Rate** | **95.0% (19/20 seeds)** |
+| Mean Reward | **+790.25** |
+| Mean Episode Time | **12.45 s** |
+| Median Episode Time | 12.51 s |
+| Total Evaluation Time | 249.0 s |
+
+#### 6. Behavioral Analysis and Cross-Baseline Comparison
+
+**Key finding: Greedy achieves 95.0% arrival rate — the ONLY baseline to successfully reach the destination.**
+
+| Baseline | Mean MaxDisp | Arrival Rate | Mean Reward | Notes |
+|---|---|---|---|---|
+| PKTD3-TD (ep6000) | 0.0 m | **0.0%** | +154.52 | Corner lock-in (deterministic gradient) |
+| Dueling DQL (ep800) | 670.9 m | **0.0%** | +1479.92 | Throughput harvesting, no goal pressure |
+| PPO (ep800) | 669.1 m | **0.0%** | +1321.76 | Throughput harvesting, entropy-driven |
+| **Greedy (no training)** | **840.8 m** | **95.0%** | +790.25 | Myopic lookahead, arrives at destination |
+
+**Why does Greedy arrive and the learned baselines do not?** The immediate reward function (eq. 21–29) includes a proximity reward term $r_{n,5} = C_{\\text{near}} \\cdot d_{\\text{near},n}$ (reward for reducing distance to destination) and an arrival bonus $r_{n,2} = C_{\\text{ar}}$ at terminal time. Greedy's per-step maximization naturally gravitates toward approaching the destination corner at each step — the proximity reward drives convergent motion. In contrast, Dueling DQL and PPO (both under 800-episode budgets) learn to hover among dense-throughput user clusters (maximizing $r_{n,1}$, the dominant cumulative term), never developing sufficient incentive to sacrifice immediate throughput for the proximity+arrival bonus. PKTD3-TD collapses before it can learn anything.
+
+**Timing implication for M14:** Each greedy episode costs ~12.45 s (200 steps × 200 candidate evaluations × `deepcopy+step`). Evaluating Greedy across large seed sets will be a bottleneck: 100 seeds ≈ 21 min. M14 should plan for this either by caching results or limiting Greedy to the 20-seed protocol already established.
+
+---
+
 ## Investigation Summary and Status (Supervisor Standalone Reference)
+
 
 ### 1. Executive Problem Statement
 Across extensive training runs (including 6,000-episode runs in Colab and 800-episode local diagnostics), the PKTD3-TD deterministic evaluation policy consistently achieves a **0.0% destination arrival rate and 0.0m median displacement**, collapsing into complete inaction or immediate spatial boundary cancellation at the initial state $Q_{\text{START}} = (0, 0, 50)$, despite 100% adherence to all equations, network architectures, and hyperparameters in the IEEE TNSE reference paper.
@@ -924,7 +1007,7 @@ Across extensive training runs (including 6,000-episode runs in Colab and 800-ep
 - **Codebase Defaults:**
   - `config.py`: `GAMMA = 0.96`, `R_RAND = 20000`, `ANNEAL_STEPS = 0` (paper baseline default).
   - CLI flags: `--anneal-steps`, `--arrived-fraction`, `--terminal-window`, `--gamma` remain available as opt-in diagnostic instruments.
-  - Test Suite: **All 57 unit tests pass** in 14.54s (50 existing + 7 new PPO).
+  - Test Suite: **All 60 unit tests pass** in 25.23s (57 existing + 3 new Greedy).
 
 ---
 
