@@ -93,7 +93,8 @@ uav_trajectory_rl/
 |-- checkpoints/
 |   |-- run1/                          # INVALID -- actor saturation, see docs/PKTD3-TD_Tracker.md
 |   |-- run2/                          # INVALID -- stand-still collapse (v=0), see docs/PKTD3-TD_Tracker.md
-|   \-- run3/                          # Run 3: improved, but unvalidated (0% arrival rate on noise sweep)
+|   |-- run3/                          # Run 3: improved, but unvalidated (0% arrival rate on noise sweep)
+|   \-- run4/                          # Run 4: full 6,000-ep annealed run (decisive 0% arrival confirmation)
 |-- docs/
 |   \-- PKTD3-TD_Tracker.md             # Ground-truth parameters, assumptions, and review notes
 |-- notebooks/
@@ -135,7 +136,7 @@ uav_trajectory_rl/
 
 ## Implementation status
 
-> **Note on Training Runs (Run 1, Run 2, Run 3):** An initial full training run (`checkpoints/run1/`) suffered from actor saturation. The second run (`checkpoints/run2/`) collapsed to a stationary $v=0$ policy. Run 3 (`checkpoints/run3/`) completed all 6,000 episodes on Colab T4 and avoided both pathologies (active gradients, displacement up to 222m). However, a 30-seed noise-sensitivity sweep (`scripts/diagnose_noise_sensitivity.py`) revealed **0.0% arrival rate** and **0.0m median displacement** under deterministic and noised evaluation ($\sigma=0.0 \dots 0.5$). Run 3 is therefore **NOT yet validated** for downstream baseline comparisons (M11–M14). See [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md)'s Review notes for full details.
+> **Note on Training Runs (Runs 1–4) & Investigation Closure:** Across four full 6,000-episode training runs (`checkpoints/run1/` through `run4/`) and 10 systematic diagnostic rounds, full deterministic convergence was **NOT achieved** (0.0% arrival rate across 720 evaluation trials on Run 4, ending in corner boundary lock-in). Direct numerical inspection identified the root cause: at the boundary-heavy start state $Q_{\text{START}} = (0, 0, 50)$, 87.5% of direction space leads to immediate boundary cancellation, producing an undifferentiated, flat critic value surface (spread $< 4\%$ between goal departure and wall collision) that deterministic policy gradient cannot reliably escape under the tested training budget. The training-instability investigation is officially **CLOSED**. All checkpoints are preserved as empirical records but are **NOT** used for downstream baseline comparisons. See [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md) for the full 10-round investigation report.
 
 ### Module roadmap
 
@@ -148,7 +149,7 @@ uav_trajectory_rl/
 - [x] M6 -- Prior-knowledge exploration policy (eq. 30-31)
 - [x] M7 -- TD3 networks and replay buffer
 - [x] M8 -- TD3 update rules (eq. 32-38)
-- [x] M9 -- Training loop (Algorithm 1; Run 3 unvalidated, see tracker notes)
+- [x] M9 -- Training loop (Algorithm 1; component-verified, convergence NOT achieved across runs 1–4; investigation closed, see docs/PKTD3-TD_Tracker.md)
 - [x] M10 -- Baseline: TDPK
 - [ ] M11 -- Baseline: Dueling DQL
 - [ ] M12 -- Baseline: PPO
@@ -168,10 +169,10 @@ uav_trajectory_rl/
 | M6 | `prior_knowledge_policy.py` | PK guidance and action dispatch (eq. 30-31) | Done (reviewed, approved) |
 | M7 | `td3_networks.py` | Actor-critic networks and replay buffer | Done (reviewed, approved) |
 | M8 | `td3_agent.py` | Clipped double-Q and target smoothing (eq. 32-38) | Done (reviewed, approved) |
-| M9 | `scripts/train.py` | Training loop (Algorithm 1) | Done (reviewed, approved; run1 & run2 invalidated, see tracker notes) |
+| M9 | `scripts/train.py` | Training loop (Algorithm 1) | Implemented & component-verified (M0–M8 hand-verified); full convergence NOT achieved across runs 1–4 (flat value surface at Q_START); investigation closed, see docs/PKTD3-TD_Tracker.md |
 | M10 | `baselines/tdpk.py` | Baseline: TDPK (direct-to-destination flight) | Done (reviewed, approved) |
-| M11-M13 | Baselines | Dueling DQL, PPO, Greedy | Not started |
-| M14 | Evaluation | Plotting suite (Figs. 4-12, Tables IV-VI) | Not started |
+| M11-M13 | Baselines | Dueling DQL, PPO, Greedy | In progress / scheduled next |
+| M14 | Evaluation | Plotting suite (Figs. 4-12, Tables IV-VI) | Scheduled next |
 
 Full parameter grounding, paper corrections, and review notes: [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md)
 

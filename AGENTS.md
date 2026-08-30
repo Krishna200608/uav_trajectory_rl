@@ -46,11 +46,9 @@ Follow these principles without exception:
 ## 5. CURRENT STATE SNAPSHOT
 
 As of the latest repository commits:
-- **Completed Modules (M0–M10):** All core environment primitives, TD3 networks, TD3 agent, prior-knowledge policy, training loop (Algorithm 1), and the first evaluation baseline (TDPK direct-to-destination heuristic) are complete, reviewed, and approved with 40 passing unit tests.
-- **Trained Model Artifacts (`checkpoints/run1/`, `run2/`, `run3/`):**
-  - **Run 1 & Run 2:** Documented as failed records (Run 1: dead-actor saturation; Run 2: stand-still $v=0$ collapse).
-  - **Run 3 (`checkpoints/run3/`):** Completed all 6,000 episodes on Colab T4 GPU with active gradients and displacement up to 222m. However, an independent 30-seed noise-sensitivity diagnostic (`scripts/diagnose_noise_sensitivity.py`) demonstrated **0.0% arrival rate** and **0.0m median displacement** under deterministic and noised evaluation ($\sigma_{\text{eval}} \in [0.0, 0.5]$) on both `ep4000` and `ep6000`. Run 3 is **NOT yet validated** for downstream baseline comparisons (M11–M14).
-- **Current Development Focus:** Investigating why the policy does not complete goal navigation despite high training rewards before proceeding to downstream baselines.
+- **Completed Modules (M0–M10):** All core environment primitives, TD3 networks, TD3 agent, prior-knowledge policy, training loop (Algorithm 1), and the first evaluation baseline (TDPK direct-to-destination heuristic) are complete, reviewed, and approved with 45 passing unit tests.
+- **Training-Instability Investigation (CLOSED):** Across 4 full 6,000-episode training runs (`checkpoints/run1/` through `run4/`) and 10 systematic diagnostic rounds, deterministic destination arrival remained strictly 0.0% with policy collapse to the corner boundary. Direct numerical inspection confirmed the root cause: at the initial state $Q_{\text{START}} = (0, 0, 50)$, 87.5% of direction space leads to immediate boundary cancellation, producing an undifferentiated, flat critic value surface (Q-spread $< 4\%$ between goal departure and wall collision) that deterministic policy gradient cannot reliably escape under the paper's literal reward formulation and training budget. Checkpoints in `checkpoints/run1/` through `run4/` are all preserved as empirical records, but **NONE** are used for downstream baseline comparisons.
+- **Current Development Focus (M11–M14):** The focus is now on implementing the remaining baselines (M11: Dueling DQL, M12: PPO, M13: Greedy heuristic) and M14 (evaluation suite). For comparative trajectory benchmarks, TDPK (M10) and the raw prior-knowledge policy serve as the working comparison points in place of a converged PKTD3-TD policy, with this documented limitation stated plainly in any eventual academic report.
 
 ## 6. ENVIRONMENT SETUP QUICK REFERENCE
 

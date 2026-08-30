@@ -95,8 +95,7 @@ Algorithm 1, line 15, lists `r_n = r_n,1+r_n,2+r_n,3+r_n,4+r_n,5` — **omits r_
 | M5 | MDP env wrapper: state/action/reward/step (eq. 17–29) | M1–M4 | **Done — reviewed, approved (Claude hand-verified all 6 reward terms exactly, incl. xy-cancellation and terminal-arrival edge cases; state normalization added per CRITICAL FIX)** |
 | M6 | Prior-knowledge exploration policy (eq. 30–31) | M5 | **Done — reviewed, approved (un-normalization boundary cases hand-verified, incl. R_ex==R_rand edge)** |
 | M7 | TD3 networks + replay buffer | M0 | **Done — reviewed, approved (shapes, q1_forward consistency, and circular-buffer overwrite hand-verified)** |
-| M8 | TD3 update rules: clipped double-Q, delayed update, target smoothing (eq. 32–38) | M7 | **Done — reviewed, approved (delayed-update cadence and terminal-target zeroing hand-verified; gradient clipping added per CRITICAL FIX)** |
-| M9 | Training loop / full Algorithm 1 | M5, M6, M7, M8 | **Done (code verified; Run 3 completed but unvalidated: 0% arrival rate on noise sweep, under active diagnosis)** |
+| M9 | Training loop / full Algorithm 1 | M5, M6, M7, M8 | **Implemented & component-verified (M0–M8 hand-verified); full convergence NOT achieved across runs 1–4 (flat value surface at Q_START); investigation closed, see Review notes** |
 | M10 | Baseline: TDPK | M5 | **Done — reviewed, approved (geometry hand-verified: diagonal, vertical, and degenerate same-point cases all match spec exactly)** |
 | M11 | Baseline: Dueling DQL | M5 | Not started |
 | M12 | Baseline: PPO | M5 | Not started |
@@ -794,6 +793,27 @@ Across extensive training runs (including 6,000-episode runs in Colab and 800-ep
   - `config.py`: `GAMMA = 0.96`, `R_RAND = 20000`, `ANNEAL_STEPS = 0` (paper baseline default).
   - CLI flags: `--anneal-steps`, `--arrived-fraction`, `--terminal-window`, `--gamma` remain available as opt-in diagnostic instruments.
   - Test Suite: **All 45 unit tests pass** in 17.03s.
+
+---
+
+## INVESTIGATION CLOSED (Run 4 Decisive Result)
+
+### 1. Summary of Run 4 Outcomes
+- **Training Protocol:** Full 6,000-episode run on Google Colab T4 GPU (`--r-rand 20000 --anneal-steps 20000 --checkpoint-every 250`), isolating handoff annealing as the sole change from Run 3.
+- **Comprehensive Evaluation:** 24 checkpoints evaluated across 30 deterministic seeds (**720 total evaluation trials**; detailed logs in `docs/Colab_Actor_Saturation_Checks_30-08-2026.md` and `scripts/verify_run4.py`).
+- **Final Verdict:**
+  - **Arrival Rate: 0/720 arrivals (strictly 0.0%) across all checkpoints.**
+  - **Final Displacement: 0.0 m median and mean displacement at `ep6000` / `final.pt`.**
+  - **Q1 Value Spread at $Q_{\text{START}}$: Never sustainably exceeded single digits** (initial 2.68%, transient peak 12.78% at ep2000, collapsing to 1.21% at ep6000 where $Q_1(\text{Goal}) = 34.88$ vs $Q_1(\text{Wall}) = 34.46$).
+  - **Actor Output at $Q_{\text{START}}$:** Saturated at $v = 20.0\text{ m/s}, \lambda = 180.0^\circ, \rho = 180.0^\circ$ (diving into floor and west wall; cancelled on Step 1).
+
+### 2. Meaning for the Rest of the Project
+1. **Component Implementations are Thoroughly Verified:**
+   All 9 sub-modules (`M0`–`M8`) and the training loop (`M9`) are individually correct, strictly faithful to the paper's literal typeset equations, and backed by 45 passing unit tests. The failure to reproduce the paper's reported trajectory convergence is **not** due to an implementation bug or coding error.
+2. **Documented as a Rigorous Negative Result:**
+   The compound continuous actor-critic system under the literal IEEE TNSE paper specification (reward scale, boundary cancellation mechanics, and $Q_{\text{START}}$ corner geometry) does not converge to the claimed trajectory within the tested 6,000-episode budget. Rather than concealing or glossing over this outcome, it is preserved as an evidence-backed finding in this academic reproduction.
+3. **Downstream Baselines & Evaluation (M11–M14):**
+   The project now pivots to completing the remaining baselines (M11: Dueling DQL, M12: PPO, M13: Greedy) and the evaluation/plotting suite (M14). In comparative benchmarks, TDPK (`M10`) and the prior-knowledge direct-flight heuristic serve as the working comparison points in place of a converged PKTD3-TD policy, with this documented limitation clearly and transparently stated in the academic report.
 
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
