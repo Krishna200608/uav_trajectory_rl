@@ -815,13 +815,16 @@ Helper functions `discrete_action_to_physical` and `physical_to_nearest_discrete
   - Peak episode reward: **$+1821.21$**
   - Total gradient updates: $>1,200,000$ steps
 - **30-Seed Deterministic Behavioral Evaluation (`select_action(state, epsilon=0.0)` on `dueling_dql_final.pt`):**
-  - **Mean max displacement:** **$600.2\text{ m}$**
-  - **Median max displacement:** **$602.8\text{ m}$**
+  - **Mean max displacement:** **$600.2\text{ m}$** (median $602.8\text{ m}$)
+  - **Mean minimum distance to $Q_{\text{END}}$ ever reached:** **$310.6\text{ m}$** (median $300.7\text{ m}$, range $162.9\text{ m}$ – $541.2\text{ m}$)
+  - **Mean final distance to $Q_{\text{END}}$ at step 200:** **$322.8\text{ m}$** (median $310.1\text{ m}$, range $162.9\text{ m}$ – $541.2\text{ m}$)
   - **Fraction $>50\text{ m}$:** **$100.0\%$** (zero corner lock-in)
   - **Destination arrival rate:** **$0.0\%$** ($0/30$ seeds)
+  - **Mean boundary cancellations in last 50 steps:** **$17.7\%$**
   - **Mean episode reward:** **$+1320.39$**
   - **Mean steps taken:** **$200.0$**
-- **Conclusion:** Dueling DQL demonstrates robust, repeatable learning across the full 6,000-episode budget, escaping the initial corner in 100% of seeds and hovering near ground users to maximize communication throughput. Like PPO, without prior knowledge guidance pointing directly to the destination corner, it focuses its budget on throughput optimization.
+- **Approach-Distance & Settling Mechanism:**
+  Unlike PPO (which charges toward the eastern perimeter and collides with the wall), Dueling DQL exhibits a **mid-field settling pattern**. The discrete Q-policy navigates into the interior swarm volume ($X \approx 440\text{--}540\text{ m}, Y \approx 265\text{--}320\text{ m}, Z \approx 60\text{--}180\text{ m}$) where communication throughput is richest. Because it experiences very few boundary cancellations (only $17.7\%$ in the final 50 steps), it is not physically obstructed by a wall. Rather, the Q-values for hovering/orbiting near users consistently outweigh the small incremental proximity reward for advancing toward the barren destination corner $Q_{\text{END}} = (600, 600, 50)$, leading it to settle stably ~310m away from the goal. This provides empirical validation of the paper's description of Dueling DQL balancing flight time vs. user throughput collection.
 
 ---
 
@@ -903,14 +906,39 @@ Episode rewards are logged identically to `scripts/train.py` (to `episode_reward
   - Mid-training reward (~3,000 episodes): $+1280.45$
   - Final 100-episode mean reward: **$+1460.19$** (steady $+650.4$ point improvement)
   - Peak episode reward: **$+1874.81$**
-- **30-Seed Deterministic Behavioral Evaluation (`select_action_deterministic`, Gaussian mean on `ppo_final.pt`):**
-  - **Mean max displacement:** **$701.9\text{ m}$**
-  - **Median max displacement:** **$721.8\text{ m}$**
-  - **Fraction $>50\text{ m}$:** **$100.0\%$** (zero corner lock-in)
-  - **Destination arrival rate:** **$0.0\%$** ($0/30$ seeds)
-  - **Mean episode reward:** **$+1469.63$**
-  - **Mean steps taken:** **$200.0$**
-- **Conclusion:** Scaling PPO from 800 episodes to the full 6,000-episode budget further elevates its throughput-harvesting performance (from $+1321.76$ to $+1469.63$) with continuous corner evasion ($100\%$ Frac$>50\text{m}$, median displacement $721.8\text{m}$). As with the 800-episode run, the policy settles into hovering around high-throughput ground user clusters rather than making the final dive into the $5.0\text{m}$ arrival threshold, reinforcing the paper's characterization of PPO as a throughput-maximizing baseline rather than a dedicated path-convergent baseline.
+- **Corrected 30-Seed Deterministic Evaluation (`select_action_deterministic`, Gaussian mean on `ppo_final.pt`):**
+  > *Methodological Note:* `PPOAgent.select_action_deterministic` directly returns the physical $(v, \lambda, \rho)$ tuple. An earlier ad hoc diagnostic script accidentally applied `unnormalize_action()` a second time, which compressed actions and produced a spurious "PPO never moves" artifact. Corrected testing reveals that PPO makes tremendous spatial progress toward the destination before stalling near the boundary.
+
+| Metric | Mean | Median | Min | Max |
+|---|---|---|---|---|
+| **Max Displacement from Start** | **$701.9\text{ m}$** | $721.8\text{ m}$ | $345.9\text{ m}$ | $835.0\text{ m}$ |
+| **Minimum Distance to $Q_{\text{END}}$ Ever Reached** | **$263.1\text{ m}$** | **$234.7\text{ m}$** | **$113.0\text{ m}$** | $579.5\text{ m}$ |
+| **Final Distance to $Q_{\text{END}}$ at Step 200** | **$263.4\text{ m}$** | **$234.7\text{ m}$** | **$113.0\text{ m}$** | $579.5\text{ m}$ |
+| **Boundary Cancellation Rate in Final 50 Steps** | **$90.4\%$** | $100.0\%$ | $0.0\%$ | $100.0\%$ |
+| **Total Boundary Cancellation Rate (200 steps)** | **$42.4\%$** | $38.0\%$ | $0.0\%$ | $71.5\%$ |
+| **Destination Arrival Rate ($d \le 5.0\text{ m}$)** | **$0.0\%$** ($0/30$) | — | — | — |
+| **Episode Reward** | **$+1469.63$** | $+1478.35$ | $+1235.00$ | $+1613.00$ |
+
+- **Complete 30-Seed Trace Data:**
+  - *Seeds approaching $<150\text{ m}$ to destination:* Seed 15 ($113.0\text{ m}$), Seed 4 ($121.0\text{ m}$), Seed 18 ($121.7\text{ m}$), Seed 27 ($141.5\text{ m}$), Seed 25 ($144.5\text{ m}$).
+  - *Seeds approaching $150\text{--}250\text{ m}$ to destination:* Seed 5 ($171.2\text{ m}$), Seed 26 ($179.6\text{ m}$), Seed 6 ($197.9\text{ m}$), Seed 9 ($204.7\text{ m}$), Seed 19 ($206.5\text{ m}$), Seed 10 ($211.1\text{ m}$), Seed 3 ($211.8\text{ m}$), Seed 11 ($213.3\text{ m}$), Seed 23 ($218.2\text{ m}$), Seed 1 ($231.7\text{ m}$), Seed 0 ($237.7\text{ m}$).
+  - *Cancellation concentration:* For 25 of 30 seeds, the UAV experiences **$86\%\text{ to }100\%$ boundary cancellation** across the final 50 time slots (steps 151–200).
+
+- **Stall Mechanism Breakdown (Seeds 0, 1, 2 Trajectory Analysis):**
+  - **Seed 0:** UAV flies smoothly from $(0, 0, 50)$ northeast across the map ($d=848.5\text{ m} \to 237.7\text{ m}$ at step 150), reaching $(599.70, 390.70, 162.74)$. At this location, the UAV is literally **$0.30\text{ m}$ from the eastern boundary wall** ($X_{\text{MAX}} = 600\text{ m}$). The actor commands $v = 14.14\text{ m/s}$, pitch $\lambda = 132.0^\circ$, and yaw $\rho = +7.2^\circ$ ($\cos \rho = +0.992$). The proposed step attempts to place the UAV at $X = 610.13\text{ m} > 600.0\text{ m}$, triggering `position_cancelled = True`. Because movement is cancelled, the UAV is frozen in place at $X=599.70$, the state stops changing along $X$, and the deterministic actor repeatedly outputs the exact same wall-penetrating action for the remaining 50 steps ($100\%$ cancelled).
+  - **Seed 2:** Similarly reaches $(593.14, 330.57, 149.28)$, $6.86\text{ m}$ from the eastern boundary ($d = 287.2\text{ m}$ from goal). Commands $v = 15.66\text{ m/s}, \rho = +7.3^\circ$, proposing $X = 606.16\text{ m} > 600.0\text{ m}$ (`violates_x = True`), causing 100% cancellation in the final steps.
+  - **Seed 1:** Reaches $(563.26, 371.94, 68.51)$, $18.51\text{ m}$ above the floor boundary ($Z_{\text{MIN}} = 50.0\text{ m}$). Commands downward pitch $\lambda = 166.1^\circ$ at $v = 20\text{ m/s}$, proposing $Z = 49.09\text{ m} < 50.0\text{ m}$ (`violates_z = True`), freezing it above the floor for the final steps.
+  - **Actor Saturation Check:** The actor's raw linear mean outputs are **NOT** undergoing unconstrained numerical explosion (unlike PKTD3-TD). Raw outputs at the stall state: Seed 0: $[0.41, 0.47, 0.04]$ (fully within $[-1, 1]$); Seed 1: $[1.45, 0.85, 0.53]$ (mild speed saturation at $v=20\text{ m/s}$); Seed 2: $[0.57, 0.37, 0.04]$ (fully within $[-1, 1]$). The actor is well-conditioned; it simply has an easterly azimuth bias ($\rho \approx 0^\circ\text{ to }10^\circ$ instead of $\rho = 45^\circ$), causing it to strike the eastern perimeter wall before reaching the northeast corner.
+
+- **Honest Assessment: Fixable Refinement vs. Structural Limit:**
+  1. *Stall Consistency:* The stall location is **highly consistent** across seeds — it is an eastern boundary wall collision ($X \approx 590\text{--}600\text{ m}$) or altitude floor collision ($Z \le 50\text{ m}$) caused by an azimuth angle bias.
+  2. *Qualitative Nature:* This is **fundamentally different from PKTD3-TD's failure mode**. PKTD3-TD suffered from immediate gradient paralysis at the origin ($0\text{ m}$ displacement). PPO covers over $700\text{ m}$ of the $848\text{ m}$ journey, cutting remaining distance by nearly $70\%$ (down to $113\text{ m}$ min).
+  3. *Why 5m Arrival is a Hard Limit under the Paper's MDP:* Achieving the $5.0\text{ m}$ arrival tolerance at an extreme spatial corner $(600, 600, 50)$ requires sub-degree steering precision without clipping any of three intersecting boundary planes ($X=600, Y=600, Z=50$). In the paper's MDP:
+     - User throughput rewards ($+3.5\text{ to }+4.5$) dominate throughout the flight corridor.
+     - Proximity reward $r_{n,4}$ provides only mild linear slope.
+     - Crossing into the $5.0\text{ m}$ circle at $t < 199$ levies an immediate **$-20.0$ early-termination penalty**.
+     - Striking a boundary plane triggers a hard position freeze (`position_cancelled = True`), terminating progress.
+  4. *Conclusion:* Without prior-knowledge vector guidance (TDPK) or boundary-avoidance potential fields, unguided model-free PPO naturally commits to high-speed eastward flight and freezes upon wall contact. This is an **authentic, informative near-miss** that highlights precisely why TDPK's prior-knowledge guidance is required to cleanly navigate the final corner approach. It should be reported as-is for M14.
 
 ---
 
@@ -1018,15 +1046,13 @@ This is correct behavior for a genuinely myopic algorithm, not a bug — but it 
 - **Greedy (M13):** Myopic artifact; takes **exactly 200 steps** (100% of arrivals occur at $t=199$); stalls for ~130 steps due to early-arrival penalty avoidance.
 - **Reporting Requirement for M14:** In any comparative table or figure, both `steps_taken` (or `steps_to_first_approach`) and `arrival_rate` must be reported together to accurately represent each baseline's behavioral characteristics.
 
-| Baseline | Mean MaxDisp | Arrival Rate | Mean Steps Taken | Arrival Timing | Mean Reward | Behavioral Nature |
-|---|---|---|---|---|---|---|
-| PKTD3-TD (ep6000) | 0.0 m | **0.0%** | 200 | N/A | +154.52 | Corner boundary lock-in |
-| Dueling DQL (ep800) | 670.9 m | **0.0%** | 200 | N/A | +1479.92 | Throughput harvesting (no goal pull) |
-| Dueling DQL (ep6000, `dueling_dql_run1`) | **600.2 m** | **0.0%** | 200 | N/A | **+1320.39** | Steady user-cluster throughput harvesting |
-| PPO (ep800) | 669.1 m | **0.0%** | 200 | N/A | +1321.76 | Throughput harvesting (entropy-driven) |
-| PPO (ep6000, `ppo_run1`) | **701.9 m** | **0.0%** | 200 | N/A | **+1469.63** | Sustained throughput cluster harvesting |
-| TDPK (M10) | 848.5 m | **100.0%** | **~89** | Smooth flight | +745.20 | Pure geometric direct flight |
-| **Greedy (M13)** | **840.8 m** | **95.0%** | **200** | **100% at $t=199$** | **+790.25** | Early approach (~step 69), ~130-step stall, last-step dash |
+| Baseline | Mean MaxDisp | Min Dist to $Q_{\text{END}}$ | Arrival Rate | Mean Steps Taken | Arrival Timing | Mean Reward | Behavioral Nature |
+|---|---|---|---|---|---|---|---|
+| PKTD3-TD (ep6000) | 0.0 m | 848.5 m | **0.0%** | 200 | N/A | +154.52 | Origin boundary lock-in at $(0, 0, 50)$ |
+| Dueling DQL (ep6000, `dueling_dql_run1`) | **600.2 m** | **310.6 m** | **0.0%** | 200 | N/A | **+1320.39** | Mid-field settling (17.7% canc); orbits user swarm |
+| PPO (ep6000, `ppo_run1`) | **701.9 m** | **263.1 m** (min 113m) | **0.0%** | 200 | N/A | **+1469.63** | High-speed approach, eastern wall collision (90.4% canc) |
+| TDPK (M10) | 848.5 m | **0.0 m** | **100.0%** | **~89** | Smooth flight | +745.20 | Pure geometric direct flight straight to $Q_{\text{END}}$ |
+| **Greedy (M13)** | **840.8 m** | **4.4 m** | **95.0%** | **200** | **100% at $t=199$** | **+790.25** | Early approach (~step 69), ~130-step stall, last-step dash |
 
 **Timing implication for M14:** Each greedy episode costs ~12.45 s (200 steps × 200 candidate evaluations × `deepcopy+step`). Evaluating Greedy across large seed sets will be a bottleneck: 100 seeds ≈ 21 min. M14 should cache evaluation results or maintain the 20-seed protocol established here.
 
