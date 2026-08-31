@@ -807,6 +807,22 @@ Helper functions `discrete_action_to_physical` and `physical_to_nearest_discrete
   - **Dueling DQL does NOT suffer from corner standstill paralysis:** Unlike PKTD3-TD, 100% of seeds escape the corner and achieve $>650\text{m}$ max displacement across the 3D space.
   - **Throughput Harvesting vs Goal Arrival Trade-off:** The UAV navigates into the dense user swarm center (e.g. $(444, 265, 184)$ at $t=50$, $(540, 317, 61)$ at $t=200$) collecting substantial throughput (mean reward $+1479.92$ vs PKTD3-TD's $+154.52$). However, without explicit terminal guidance, it prioritizes hovering near users over reaching the final corner $q_e = (600, 600, 50)$ within 200 slots (ending $\approx 289\text{ m}$ away), resulting in a 0.0% arrival rate under this 800-episode budget. This precisely illustrates the paper's characterization of Dueling DQL balancing flight time vs. throughput.
 
+#### 8. Full 6,000-Episode Colab T4 Training Run (`checkpoints/dueling_dql_run1/`)
+- **Training Setup:** Full paper budget of 6,000 episodes, matching Table III `M_EPISODES = 6000`. Epsilon-greedy linear decay $1.0 \to 0.05$ over 4,800 episodes, Polyak soft updates ($\tau=0.005$) every gradient step. Checkpoints saved every 250 episodes (24 total checkpoints + `dueling_dql_final.pt`). Trained on Colab T4 (`notebooks/train_dueling_dql_colab.ipynb`).
+- **Learning Dynamics:**
+  - Initial 100-episode mean reward: $+179.37$
+  - Final 100-episode mean reward: **$+1482.55$** (monotonic **$+1,303.18$ point** improvement)
+  - Peak episode reward: **$+1821.21$**
+  - Total gradient updates: $>1,200,000$ steps
+- **30-Seed Deterministic Behavioral Evaluation (`select_action(state, epsilon=0.0)` on `dueling_dql_final.pt`):**
+  - **Mean max displacement:** **$600.2\text{ m}$**
+  - **Median max displacement:** **$602.8\text{ m}$**
+  - **Fraction $>50\text{ m}$:** **$100.0\%$** (zero corner lock-in)
+  - **Destination arrival rate:** **$0.0\%$** ($0/30$ seeds)
+  - **Mean episode reward:** **$+1320.39$**
+  - **Mean steps taken:** **$200.0$**
+- **Conclusion:** Dueling DQL demonstrates robust, repeatable learning across the full 6,000-episode budget, escaping the initial corner in 100% of seeds and hovering near ground users to maximize communication throughput. Like PPO, without prior knowledge guidance pointing directly to the destination corner, it focuses its budget on throughput optimization.
+
 ---
 
 ## M12 — PPO Baseline (`src/uav_trajectory_rl/baselines/ppo.py`)
@@ -1006,6 +1022,7 @@ This is correct behavior for a genuinely myopic algorithm, not a bug — but it 
 |---|---|---|---|---|---|---|
 | PKTD3-TD (ep6000) | 0.0 m | **0.0%** | 200 | N/A | +154.52 | Corner boundary lock-in |
 | Dueling DQL (ep800) | 670.9 m | **0.0%** | 200 | N/A | +1479.92 | Throughput harvesting (no goal pull) |
+| Dueling DQL (ep6000, `dueling_dql_run1`) | **600.2 m** | **0.0%** | 200 | N/A | **+1320.39** | Steady user-cluster throughput harvesting |
 | PPO (ep800) | 669.1 m | **0.0%** | 200 | N/A | +1321.76 | Throughput harvesting (entropy-driven) |
 | PPO (ep6000, `ppo_run1`) | **701.9 m** | **0.0%** | 200 | N/A | **+1469.63** | Sustained throughput cluster harvesting |
 | TDPK (M10) | 848.5 m | **100.0%** | **~89** | Smooth flight | +745.20 | Pure geometric direct flight |
