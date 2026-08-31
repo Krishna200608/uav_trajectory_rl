@@ -98,7 +98,9 @@ uav_trajectory_rl/
 |-- docs/
 |   \-- PKTD3-TD_Tracker.md             # Ground-truth parameters, assumptions, and review notes
 |-- notebooks/
-|   |-- train_colab.ipynb               # Google Colab T4 training notebook with Drive backup & GitHub push
+|   |-- train_colab.ipynb               # Google Colab T4 training notebook with Drive backup & GitHub push (PKTD3-TD)
+|   |-- train_dueling_dql_colab.ipynb   # Google Colab T4 training notebook with Drive backup & GitHub push (Dueling DQL)
+|   |-- train_ppo_colab.ipynb           # Google Colab T4 training notebook with Drive backup & GitHub push (PPO)
 |   \-- check_actor_saturation_colab.ipynb # Live diagnostic monitor to check actor saturation on Drive
 |-- scripts/
 |   |-- .gitkeep                        # Execution and training scripts
