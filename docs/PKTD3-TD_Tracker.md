@@ -880,10 +880,21 @@ Episode rewards are logged identically to `scripts/train.py` (to `episode_reward
   | `ppo_step81920.pt` (≈ep400) | $709.8\text{ m}$ | $706.0\text{ m}$ | **100.0%** | **0.0%** | $+1250.00$ |
   | `ppo_step122880.pt` (≈ep600) | $709.7\text{ m}$ | $714.8\text{ m}$ | **100.0%** | **0.0%** | $+1313.99$ |
   | `ppo_final.pt` (ep800) | $669.1\text{ m}$ | $672.9\text{ m}$ | **100.0%** | **0.0%** | $+1321.76$ |
-- **Behavioral Analysis:**
-  - **PPO does NOT suffer from corner standstill paralysis:** 100% of seeds escape the corner and achieve large displacements ($>489\text{ m}$ min, up to $>700\text{ m}$ median) across all checkpoints, matching Dueling DQL's behavior.
-  - **Throughput harvesting vs goal arrival trade-off:** PPO's stochastic Gaussian policy naturally explores the service area (entropy-driven, no deterministic gradient cliff). It harvests substantial throughput (mean reward $+1321.76$, comparable to Dueling DQL's $+1479.92$) but does not consistently navigate to $q_e = (600, 600, 50)$ within the 200-step episode budget, resulting in 0.0% arrival rate.
-  - **Comparison to expectation:** The expectation that "PPO's stochastic policy should behave more like Dueling DQL than like TD3" is confirmed. Both DQL and PPO achieve full corner escape (100% Frac>50m) and high throughput rewards, while PKTD3-TD's deterministic policy collapses to 0.0m standstill. The 0.0% arrival rate is shared across all baselines under the 800-episode budget — consistent with the paper's description of PPO as a throughput-balancing method.
+#### 8. Full 6,000-Episode Colab T4 Training Run (`checkpoints/ppo_run1/`)
+- **Training Setup:** Full paper budget of 6,000 episodes ($1,200,000$ total environment steps, $2,048$-step rollouts, 24 checkpoints saved every $50,000$ steps). Trained in Colab (`notebooks/train_ppo_colab.ipynb`).
+- **Learning Dynamics:**
+  - Initial 100-episode mean reward: $+809.78$
+  - Mid-training reward (~3,000 episodes): $+1280.45$
+  - Final 100-episode mean reward: **$+1460.19$** (steady $+650.4$ point improvement)
+  - Peak episode reward: **$+1874.81$**
+- **30-Seed Deterministic Behavioral Evaluation (`select_action_deterministic`, Gaussian mean on `ppo_final.pt`):**
+  - **Mean max displacement:** **$701.9\text{ m}$**
+  - **Median max displacement:** **$721.8\text{ m}$**
+  - **Fraction $>50\text{ m}$:** **$100.0\%$** (zero corner lock-in)
+  - **Destination arrival rate:** **$0.0\%$** ($0/30$ seeds)
+  - **Mean episode reward:** **$+1469.63$**
+  - **Mean steps taken:** **$200.0$**
+- **Conclusion:** Scaling PPO from 800 episodes to the full 6,000-episode budget further elevates its throughput-harvesting performance (from $+1321.76$ to $+1469.63$) with continuous corner evasion ($100\%$ Frac$>50\text{m}$, median displacement $721.8\text{m}$). As with the 800-episode run, the policy settles into hovering around high-throughput ground user clusters rather than making the final dive into the $5.0\text{m}$ arrival threshold, reinforcing the paper's characterization of PPO as a throughput-maximizing baseline rather than a dedicated path-convergent baseline.
 
 ---
 
@@ -996,6 +1007,7 @@ This is correct behavior for a genuinely myopic algorithm, not a bug — but it 
 | PKTD3-TD (ep6000) | 0.0 m | **0.0%** | 200 | N/A | +154.52 | Corner boundary lock-in |
 | Dueling DQL (ep800) | 670.9 m | **0.0%** | 200 | N/A | +1479.92 | Throughput harvesting (no goal pull) |
 | PPO (ep800) | 669.1 m | **0.0%** | 200 | N/A | +1321.76 | Throughput harvesting (entropy-driven) |
+| PPO (ep6000, `ppo_run1`) | **701.9 m** | **0.0%** | 200 | N/A | **+1469.63** | Sustained throughput cluster harvesting |
 | TDPK (M10) | 848.5 m | **100.0%** | **~89** | Smooth flight | +745.20 | Pure geometric direct flight |
 | **Greedy (M13)** | **840.8 m** | **95.0%** | **200** | **100% at $t=199$** | **+790.25** | Early approach (~step 69), ~130-step stall, last-step dash |
 
