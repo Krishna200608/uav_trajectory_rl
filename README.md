@@ -162,7 +162,8 @@ uav_trajectory_rl/
 - [x] M13 -- Baseline: Greedy (200-candidate one-step lookahead, deep copy; 95% arrival rate; verified)
 - [ ] M14 -- Evaluation and plotting suite (Figs. 4-9 in scope; Figs. 10-12 & Tables IV-VI out of scope, see tracker)
   - [x] M14-Core -- Shared 5-method evaluation harness + mobility-speed env extension (reviewed, approved)
-  - [ ] M14a-f -- Figure/table generation scripts
+  - [x] M14a -- Trajectory & time-slot snapshot figures (Figs. 4-5 analogs; generated, verified)
+  - [ ] M14b-f -- Remaining figure/table generation scripts
 
 ### Detailed module tracking
 
@@ -182,7 +183,9 @@ uav_trajectory_rl/
 | M11 | `baselines/dueling_dql.py` | Baseline: Dueling DQL (discrete 200-action Q-learning) | Done (reviewed, approved). Full 6000-ep run (`checkpoints/dueling_dql_run1`), 30-seed deterministic eval independently re-verified: 0% arrival, mean min-dist-to-goal 310.6 m; settles mid-field (X≈440-540, Y≈265-320) to harvest user throughput rather than continuing toward the destination corner (17.7% boundary cancellation in final 50 steps -- free-roaming, not wall-stuck). |
 | M12 | `baselines/ppo.py` | Baseline: PPO (Gaussian policy, GAE-Lambda, PPO-Clip, rollout-based) | Done (reviewed, approved). Full 6000-ep run (`checkpoints/ppo_run1`), 30-seed deterministic eval independently re-verified: 0% arrival, mean min-dist-to-goal 263.1 m (best seed 113 m) -- makes genuine progress (~700 m+ covered) but its learned azimuth is biased toward ρ≈0-10° instead of the needed 45°, so it collides with the eastern boundary wall (X=600) and freezes there (90.4% cancellation in final 50 steps). Reported as-is per team decision: an authentic near-miss, not a bug, and any fix would deviate from the paper's literal MDP. |
 | M13 | `baselines/greedy.py` | Baseline: Greedy (one-step lookahead over 200 discrete actions) | Done (reviewed, approved). 95% arrival rate (19/20 seeds); myopic search approaches the goal by ~step 68-70 then deliberately stalls near the corner for ~130 steps to avoid eq. 23's -20 early-termination penalty, arriving only at the forced final step t=199. |
-| M14 | Evaluation | Plotting suite (Figs. 4-9 in scope; Figs. 10-12 & Tables IV-VI out of scope -- require a converged PKTD3-TD, see tracker) | In progress. M14-Core (shared 5-method evaluation harness, mobility-speed env extension) done, reviewed, independently re-verified. |
+| M14-Core | `evaluation/harness.py` | Shared 5-method evaluation harness + mobility-speed env extension | Done (reviewed, approved). Uniform interface for TDPK, Greedy, Dueling DQL, PPO, PKTD3-TD. |
+| M14a | `evaluation/figures_4_5.py` | Trajectory (3-D, Fig. 4) & Time-Slot Snapshot (2-D, Fig. 5) figures | Done (verified). Generates combined 5-method 3-D trajectory comparison and 6-slot snapshots per method at seed 0. |
+| M14b-f | Evaluation | Remaining plotting scripts (Figs. 6-9) | Scheduled next |
 
 Full parameter grounding, paper corrections, and review notes: [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md)
 

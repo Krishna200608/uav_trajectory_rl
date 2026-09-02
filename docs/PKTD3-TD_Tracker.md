@@ -1210,4 +1210,22 @@ a functional bug — confirmed above that the resulting physical actions are cor
 places against an independent hand calculation.
 
 ---
+
+## M14a — Trajectory & Time-Slot Snapshot Figures (Paper Figs. 4-5 Analogs)
+
+**Status: Done (verified).** Commit corresponds to M14a figure suite addition (`src/uav_trajectory_rl/evaluation/figures_4_5.py` and `scripts/generate_m14a_figures.py`). Generates 1 combined 3-D trajectory comparison figure (`results/figures/fig4_trajectories_comparison.png`) and 5 method-specific 2-D time-slot snapshot figures (`results/figures/fig5_snapshots_{method}.png`).
+
+### Design Decisions & Assumptions
+1. **5-Method Combined 3-D Trajectory Comparison (Fig. 4 Analog):** Rather than showing PKTD3-TD in isolation, the Fig. 4 analog places all 5 methods side-by-side in a 2x3 subplot grid (5 active + 1 hidden). This transparently displays the contrast between the four progressing baselines (TDPK, Greedy, Dueling DQL, PPO) and PKTD3-TD's documented non-convergence (corner lock-in at $Q_{\text{START}}$).
+2. **Fixed Starting & Destination Points:** Only the identical $Q_{\text{START}} = (0, 0, 50)$ and $Q_{\text{END}} = (600, 600, 50)$ geometry (Paper Fig. 4(b)) is evaluated, matching `config.py` invariants.
+3. **Adaptive Time-Slot Snapshot Selection (Fig. 5 Analog, ASSUMPTION):** Paper Fig. 5 plots 6 fixed slots ($n=35, 70, 105, 140, 175, 194$) for a 200-step episode. Because episode lengths vary across methods (e.g. TDPK arrives at $n=75$), snapshot slots are computed proportionally:
+   $$\text{slots} = \text{round}\left(f \times (T_{\text{taken}} - 1)\right), \quad f \in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]$$
+   deduplicated, sorted, and clamped to $[0, T_{\text{taken}} - 1]$. Subplot titles preserve the paper's exact $n=\dots, z=\dots\text{m}, L_p=\dots$ annotation format.
+4. **Single Representative Seed:** All figures use seed 0, $k=10$, default $v_{\text{init\_range}} = (0.5, 2.0)$ via the evaluation harness.
+
+### Schema-Version Bump: `user_positions_history`
+- Added `user_positions_history: np.ndarray` (shape $(T, k, 2)$) to `EpisodeLog` dataclass and `.npz` serialization in `harness.py`.
+- No pre-existing cache files were affected in `results/m14_cache/` as the directory was clean.
+
+---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*

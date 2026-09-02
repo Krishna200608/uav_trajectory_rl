@@ -90,6 +90,7 @@ class EpisodeLog:
     transmission_rates_bps: np.ndarray # shape (T,): Instantaneous total rate (bps)
     energy_consumptions_j: np.ndarray  # shape (T,): Energy consumed per step (J)
     position_cancelled: np.ndarray     # shape (T,): bool flag for boundary violation
+    user_positions_history: np.ndarray # shape (T, k, 2): all users' (x, y) after each step
     arrived_flags: np.ndarray          # shape (T,): bool flag for arrival condition
 
     # Summary metrics
@@ -125,6 +126,7 @@ class EpisodeLog:
             transmission_rates_bps=self.transmission_rates_bps,
             energy_consumptions_j=self.energy_consumptions_j,
             position_cancelled=self.position_cancelled,
+            user_positions_history=self.user_positions_history,
             arrived_flags=self.arrived_flags,
             total_reward=np.array(self.total_reward, dtype=np.float64),
             total_energy=np.array(self.total_energy, dtype=np.float64),
@@ -159,6 +161,7 @@ class EpisodeLog:
                 transmission_rates_bps=data["transmission_rates_bps"],
                 energy_consumptions_j=data["energy_consumptions_j"],
                 position_cancelled=data["position_cancelled"],
+                user_positions_history=data["user_positions_history"],
                 arrived_flags=data["arrived_flags"],
                 total_reward=float(data["total_reward"]),
                 total_energy=float(data["total_energy"]),
@@ -331,6 +334,7 @@ def run_episode(
     target_pos = env.q_end.copy()
 
     positions_list = []
+    user_positions_list = []
     actions_list = []
     rewards_list = []
     distances_list = []
@@ -349,6 +353,7 @@ def run_episode(
         next_state, reward, done, info = env.step(action)
 
         positions_list.append(env.uav_pos.copy())
+        user_positions_list.append(env.user_swarm.positions.copy())
         actions_list.append(action)
         rewards_list.append(float(reward))
         distances_list.append(float(info["dist_to_end"]))
@@ -366,6 +371,7 @@ def run_episode(
         steps += 1
 
     positions = np.array(positions_list, dtype=np.float64)
+    user_positions = np.array(user_positions_list, dtype=np.float64)
     actions = np.array(actions_list, dtype=np.float64)
     rewards = np.array(rewards_list, dtype=np.float64)
     distances = np.array(distances_list, dtype=np.float64)
@@ -407,6 +413,7 @@ def run_episode(
         transmission_rates_bps=rates,
         energy_consumptions_j=energy,
         position_cancelled=cancelled,
+        user_positions_history=user_positions,
         arrived_flags=arrived_flags,
         total_reward=float(np.sum(rewards)),
         total_energy=float(np.sum(energy)),

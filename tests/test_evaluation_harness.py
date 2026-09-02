@@ -112,6 +112,7 @@ def test_episode_log_npz_roundtrip(tmp_path: Path):
     assert np.allclose(log_loaded.transmission_rates_bps, log_orig.transmission_rates_bps)
     assert np.allclose(log_loaded.energy_consumptions_j, log_orig.energy_consumptions_j)
     assert np.array_equal(log_loaded.position_cancelled, log_orig.position_cancelled)
+    assert np.allclose(log_loaded.user_positions_history, log_orig.user_positions_history)
     assert np.array_equal(log_loaded.arrived_flags, log_orig.arrived_flags)
     assert math.isclose(log_loaded.total_reward, log_orig.total_reward)
     assert math.isclose(log_loaded.total_energy, log_orig.total_energy)
