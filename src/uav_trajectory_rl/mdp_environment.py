@@ -103,6 +103,7 @@ class UAVTrajectoryEnv:
         c_near: float = C_NEAR,
         c_lack: float = C_LACK,
         charge_energy_on_cancelled_move: bool = True,
+        user_v_init_range: Tuple[float, float] = (0.5, 2.0),  # DESIGN DECISION: matches UserSwarm default; not paper-specified
     ) -> None:
         """
         Initialize the UAV trajectory MDP environment.
@@ -124,10 +125,12 @@ class UAVTrajectoryEnv:
             charge_energy_on_cancelled_move: If True (default), energy is charged based on
                 commanded speed even if spatial boundary violation cancelled the movement.
                 If False, v_n=0.0 is used for energy calculation when movement is cancelled.
+            user_v_init_range: Speed range (min_v, max_v) in m/s for initial user velocities.
         """
         self.k: int = k
         self.rng: np.random.Generator = rng if rng is not None else np.random.default_rng()
         self.charge_energy_on_cancelled_move: bool = charge_energy_on_cancelled_move
+        self.user_v_init_range: Tuple[float, float] = user_v_init_range
 
         # Environment geometry
         self.q_start: np.ndarray = np.array(q_start, dtype=np.float64)
@@ -184,6 +187,7 @@ class UAVTrajectoryEnv:
             k=self.k,
             area_bounds=(self.x_min, self.x_max, self.y_min, self.y_max),
             rng=self.rng,
+            v_init_range=self.user_v_init_range,
         )
 
         return self._build_state()

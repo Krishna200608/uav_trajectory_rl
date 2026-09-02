@@ -108,3 +108,30 @@ def test_charge_energy_on_cancelled_move_toggle():
     assert math.isclose(info_no_charge["r2_energy"], expected_no_charge_r2)
     assert math.isclose(info_charge["r2_energy"], expected_charge_r2)
     assert not math.isclose(info_no_charge["r2_energy"], info_charge["r2_energy"])
+
+
+def test_user_v_init_range_passthrough():
+    """
+    Verify user_v_init_range:
+    (a) Default construction uses (0.5, 2.0) and passes it to UserSwarm.
+    (b) Custom range (e.g. (5.0, 7.0)) overrides UserSwarm.v_init_range and initializes user speeds in range.
+    """
+    # (a) Default construction
+    env_default = UAVTrajectoryEnv(k=10, rng=np.random.default_rng(0))
+    assert env_default.user_v_init_range == (0.5, 2.0)
+    env_default.reset()
+    assert env_default.user_swarm is not None
+    assert env_default.user_swarm.v_init_range == (0.5, 2.0)
+    assert np.all(env_default.user_swarm.velocities >= 0.5)
+    assert np.all(env_default.user_swarm.velocities <= 2.0)
+
+    # (b) Custom range
+    custom_range = (5.0, 7.0)
+    env_custom = UAVTrajectoryEnv(k=10, rng=np.random.default_rng(0), user_v_init_range=custom_range)
+    assert env_custom.user_v_init_range == (5.0, 7.0)
+    env_custom.reset()
+    assert env_custom.user_swarm is not None
+    assert env_custom.user_swarm.v_init_range == (5.0, 7.0)
+    assert np.all(env_custom.user_swarm.velocities >= 5.0)
+    assert np.all(env_custom.user_swarm.velocities <= 7.0)
+
