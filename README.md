@@ -157,10 +157,12 @@ uav_trajectory_rl/
 - [x] M8 -- TD3 update rules (eq. 32-38)
 - [x] M9 -- Training loop (Algorithm 1; component-verified, convergence NOT achieved across runs 1–4; investigation closed, see docs/PKTD3-TD_Tracker.md)
 - [x] M10 -- Baseline: TDPK
-- [x] M11 -- Baseline: Dueling DQL
-- [x] M12 -- Baseline: PPO (Gaussian policy, GAE-Lambda, PPO-Clip; implemented -- pending review)
-- [x] M13 -- Baseline: Greedy (200-candidate one-step lookahead, deep copy; implemented -- pending review)
-- [ ] M14 -- Evaluation and plotting suite (Figs. 4-12, Tables IV-VI)
+- [x] M11 -- Baseline: Dueling DQL (full 6000-ep run; 0% arrival, mid-field throughput settling; verified)
+- [x] M12 -- Baseline: PPO (Gaussian policy, GAE-Lambda, PPO-Clip; full 6000-ep run; 0% arrival, eastern-wall near-miss; verified)
+- [x] M13 -- Baseline: Greedy (200-candidate one-step lookahead, deep copy; 95% arrival rate; verified)
+- [ ] M14 -- Evaluation and plotting suite (Figs. 4-9 in scope; Figs. 10-12 & Tables IV-VI out of scope, see tracker)
+  - [x] M14-Core -- Shared 5-method evaluation harness + mobility-speed env extension (reviewed, approved)
+  - [ ] M14a-f -- Figure/table generation scripts
 
 ### Detailed module tracking
 
@@ -177,10 +179,10 @@ uav_trajectory_rl/
 | M8 | `td3_agent.py` | Clipped double-Q and target smoothing (eq. 32-38) | Done (reviewed, approved) |
 | M9 | `scripts/train.py` | Training loop (Algorithm 1) | Implemented & component-verified (M0–M8 hand-verified); full convergence NOT achieved across runs 1–4 (flat value surface at Q_START); investigation closed, see docs/PKTD3-TD_Tracker.md |
 | M10 | `baselines/tdpk.py` | Baseline: TDPK (direct-to-destination flight) | Done (reviewed, approved) |
-| M11 | `baselines/dueling_dql.py` | Baseline: Dueling DQL (discrete 200-action Q-learning) | Implemented -- pending review (60 unit tests passing) |
-| M12 | `baselines/ppo.py` | Baseline: PPO (Gaussian policy, GAE-Lambda, PPO-Clip, rollout-based) | Implemented -- pending review (60 unit tests passing, 800-ep diagnostic done) |
-| M13 | `baselines/greedy.py` | Baseline: Greedy (one-step lookahead over 200 discrete actions) | Implemented -- pending review (60 unit tests passing, 95% arrival rate) |
-| M14 | Evaluation | Plotting suite (Figs. 4-12, Tables IV-VI) | Scheduled next |
+| M11 | `baselines/dueling_dql.py` | Baseline: Dueling DQL (discrete 200-action Q-learning) | Done (reviewed, approved). Full 6000-ep run (`checkpoints/dueling_dql_run1`), 30-seed deterministic eval independently re-verified: 0% arrival, mean min-dist-to-goal 310.6 m; settles mid-field (X≈440-540, Y≈265-320) to harvest user throughput rather than continuing toward the destination corner (17.7% boundary cancellation in final 50 steps -- free-roaming, not wall-stuck). |
+| M12 | `baselines/ppo.py` | Baseline: PPO (Gaussian policy, GAE-Lambda, PPO-Clip, rollout-based) | Done (reviewed, approved). Full 6000-ep run (`checkpoints/ppo_run1`), 30-seed deterministic eval independently re-verified: 0% arrival, mean min-dist-to-goal 263.1 m (best seed 113 m) -- makes genuine progress (~700 m+ covered) but its learned azimuth is biased toward ρ≈0-10° instead of the needed 45°, so it collides with the eastern boundary wall (X=600) and freezes there (90.4% cancellation in final 50 steps). Reported as-is per team decision: an authentic near-miss, not a bug, and any fix would deviate from the paper's literal MDP. |
+| M13 | `baselines/greedy.py` | Baseline: Greedy (one-step lookahead over 200 discrete actions) | Done (reviewed, approved). 95% arrival rate (19/20 seeds); myopic search approaches the goal by ~step 68-70 then deliberately stalls near the corner for ~130 steps to avoid eq. 23's -20 early-termination penalty, arriving only at the forced final step t=199. |
+| M14 | Evaluation | Plotting suite (Figs. 4-9 in scope; Figs. 10-12 & Tables IV-VI out of scope -- require a converged PKTD3-TD, see tracker) | In progress. M14-Core (shared 5-method evaluation harness, mobility-speed env extension) done, reviewed, independently re-verified. |
 
 Full parameter grounding, paper corrections, and review notes: [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md)
 

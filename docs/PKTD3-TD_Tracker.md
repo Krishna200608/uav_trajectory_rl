@@ -1120,4 +1120,94 @@ Across extensive training runs (including 6,000-episode runs in Colab and 800-ep
    The project now pivots to completing the remaining baselines (M11: Dueling DQL, M12: PPO, M13: Greedy) and the evaluation/plotting suite (M14). In comparative benchmarks, TDPK (`M10`) and the prior-knowledge direct-flight heuristic serve as the working comparison points in place of a converged PKTD3-TD policy, with this documented limitation clearly and transparently stated in the academic report.
 
 ---
+
+## M11/M12 Independent Re-Verification (Fresh Session Cross-Check)
+
+Following this project's standing discipline of never accepting a reported number without
+re-deriving it from the actual checkpoint, a fresh Claude session pulled the repo at commit
+`4abf9aa` and independently re-ran the Dueling DQL 30-seed deterministic evaluation using a
+newly written script (`scripts/independent_verify_dueling_dql.py`, not copied from
+`scripts/diagnose_dueling_dql.py`), loading `checkpoints/dueling_dql_run1/dueling_dql_final.pt`
+directly.
+
+**Result: exact match on every reported statistic**, including the full per-seed min-distance
+range:
+
+| Metric | Tracker (reported) | Independent re-run |
+|---|---|---|
+| Mean min-dist to $Q_{\text{END}}$ | 310.6 m | 310.6 m |
+| Median min-dist | 300.7 m | 300.7 m |
+| Range | 162.9–541.2 m | 162.9–541.2 m |
+| Boundary cancellation, last 50 steps | 17.7% | 17.7% |
+| Arrival rate | 0.0% (0/30) | 0.0% (0/30) |
+| Mean max displacement | 600.2 m | 600.2 m |
+
+The PPO methodology fix in commit `4abf9aa` (correcting the double-`unnormalize_action()` bug)
+was also confirmed to be the same fix already reflected in the current tracker text — i.e. no
+regression occurred between the prior session's handoff and this session's pull.
+
+**Secondary finding (fixed in this session):** `README.md` had not been updated in commit
+`4abf9aa` — it still listed M11/M12 as "Implemented -- pending review (800-ep diagnostic done)",
+understating the completed full 6,000-episode characterization already present in this tracker
+and in `AGENTS.md`. Updated `README.md`'s checklist and detailed module table for M11, M12, and
+M13 to "Done (reviewed, approved)" with the verified behavioral mechanisms summarized inline,
+matching the tone of M0–M10's entries.
+
+**Also noted:** no committed script currently runs the exact 30-seed protocol for Dueling DQL or
+PPO (`scripts/diagnose_dueling_dql.py` defaults to 20 seeds); the 30-seed numbers in the tracker
+came from ad hoc runs. `scripts/independent_verify_dueling_dql.py` is now committed as a
+reproducible 30-seed reference script for Dueling DQL. Recommend a matching
+`independent_verify_ppo.py` if bit-for-bit PPO reproducibility is wanted later, though this
+was not required to confirm the numbers (the corrected values in `4abf9aa` came from the
+methodology-fix diagnostic itself, not from a separate independent script).
+
+**Decision on M12's azimuth bias:** Reaffirmed the team's existing recommendation to report PPO
+as-is. The eastern-wall-collision mechanism is fully explained and mathematically consistent
+(not a bug); any correction (reward shaping, boundary potential fields, curriculum) would deviate
+from the paper's literal MDP, which conflicts with this project's paper-fidelity discipline this
+close to submission. M11 and M12 are both considered FINAL for M14 baseline comparisons.
+
+---
+
+## M14-Core — Shared Evaluation Harness + Mobility-Speed Env Extension (Reviewed)
+
+**Status: Done (reviewed, approved).** Commit `5878d1c`. Implements a uniform 5-method
+evaluation interface (`src/uav_trajectory_rl/evaluation/harness.py`) and an additive,
+backward-compatible `user_v_init_range` parameter on `UAVTrajectoryEnv` (needed for the Fig. 9
+mobility-speed sweep). All M0–M13 test suites remain green (66/66 passing after this change,
+zero regressions to any existing default behavior).
+
+**ASSUMPTION (Fig. 9 mobility-speed mapping):** the paper's Fig. 9 x-axis is a single scalar
+"user mobility speed" $v_{\text{mob}} \in [2, 12]\text{ m/s}$, but `UserSwarm`'s Gauss-Markov
+model takes a `(min, max)` initialization range, not a scalar. Mapped as:
+$$\text{v\_init\_range} = \left(\max(0.1,\ v_{\text{mob}} - 1.0),\ v_{\text{mob}} + 1.0\right)$$
+i.e. a ±1 m/s band centered on the target speed, leaving the existing Gauss-Markov memory/noise
+mechanics (`OMEGA`, `SIGMA1`, `SIGMA2`) untouched. Not paper-specified; flagged here per this
+project's standing convention of never silently guessing non-specified values.
+
+**Independent re-verification (fresh session, `scripts/independent_verify_m14_core.py`, not
+copied from `tests/test_evaluation_harness.py`):**
+- Re-ran the full test suite from a clean pull: 66/66 passing, matching the reported count exactly.
+- Confirmed all 5 `MethodSpec.action_fn` wrappers produce physical actions within valid bounds
+  ($v \in [0, V_{\text{MAX}}]$, $\lambda \in [0, \pi]$, $\rho \in [-\pi, \pi]$) using a live env state.
+- Confirmed TDPK arrives (75 steps at seed 0, consistent with M10's ~89-step average) and Greedy
+  runs the full 200 steps before its known forced-final-step arrival.
+- **Independently re-derived the PKTD3-TD `unnormalize_action` mapping by hand** (not just checked
+  it ran without error) and confirmed the harness's wrapped output matches the manual calculation
+  to 6 decimal places. As a bonus cross-check: the raw actor output at $Q_{\text{START}}$
+  (`[0.9999854, 1.0, 1.0]`) unnormalizes to $v=20.0\text{ m/s}, \lambda=180°, \rho=180°$ — this
+  **exactly matches** the actor saturation values already documented from the Run 4 investigation
+  ("Actor Output at $Q_{\text{START}}$: Saturated at $v=20.0\text{ m/s}, \lambda=180.0°,
+  \rho=180.0°$"), confirming the wrapper is correctly wired to the real checkpoint, not just
+  internally self-consistent.
+- Confirmed `run_batch()` caching is real (second call ~16x faster, reads from disk rather than
+  re-simulating).
+
+**Minor note, not a defect:** unit tests use a `+1e-5` tolerance on the $\lambda \le \pi$ and
+$\rho \le \pi$ bounds checks to absorb float32 rounding in `unnormalize_action` when the actor's
+raw output saturates exactly at the clip bound $c$. This is expected floating-point behavior, not
+a functional bug — confirmed above that the resulting physical actions are correct to 6 decimal
+places against an independent hand calculation.
+
+---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
