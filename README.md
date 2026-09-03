@@ -163,7 +163,8 @@ uav_trajectory_rl/
 - [ ] M14 -- Evaluation and plotting suite (Figs. 4-9 in scope; Figs. 10-12 & Tables IV-VI out of scope, see tracker)
   - [x] M14-Core -- Shared 5-method evaluation harness + mobility-speed env extension (reviewed, approved)
   - [x] M14a -- Trajectory & time-slot snapshot figures (Figs. 4-5 analogs; generated, verified)
-  - [ ] M14b-f -- Remaining figure/table generation scripts
+  - [x] M14b -- Real-time LoS probability & transmission rate curves (Fig. 6 analog; generated, verified)
+  - [ ] M14c-f -- Remaining figure/table generation scripts
 
 ### Detailed module tracking
 
@@ -185,7 +186,8 @@ uav_trajectory_rl/
 | M13 | `baselines/greedy.py` | Baseline: Greedy (one-step lookahead over 200 discrete actions) | Done (reviewed, approved). 95% arrival rate (19/20 seeds); myopic search approaches the goal by ~step 68-70 then deliberately stalls near the corner for ~130 steps to avoid eq. 23's -20 early-termination penalty, arriving only at the forced final step t=199. |
 | M14-Core | `evaluation/harness.py` | Shared 5-method evaluation harness + mobility-speed env extension | Done (reviewed, approved). Uniform interface for TDPK, Greedy, Dueling DQL, PPO, PKTD3-TD. |
 | M14a | `evaluation/figures_4_5.py` | Trajectory (3-D, Fig. 4) & Time-Slot Snapshot (2-D, Fig. 5) figures | Done (verified). Generates combined 5-method 3-D trajectory comparison and 6-slot snapshots per method at seed 0. |
-| M14b-f | Evaluation | Remaining plotting scripts (Figs. 6-9) | Scheduled next |
+| M14b | `evaluation/figures_6.py` | Real-time LoS probability & transmission rate curves (Fig. 6) | Done (verified). Generates 2-subplot real-time curves comparing all 5 methods at seed 0. |
+| M14c-f | Evaluation | Remaining plotting scripts (Figs. 7-9) | Scheduled next |
 
 Full parameter grounding, paper corrections, and review notes: [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md)
 

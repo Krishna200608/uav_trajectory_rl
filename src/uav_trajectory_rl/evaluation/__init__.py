@@ -6,6 +6,10 @@ from uav_trajectory_rl.evaluation.figures_4_5 import (
     generate_fig4_trajectories,
     generate_fig5_snapshots,
 )
+from uav_trajectory_rl.evaluation.figures_6 import (
+    METHOD_COLORS,
+    generate_fig6_realtime_curves,
+)
 from uav_trajectory_rl.evaluation.harness import (
     EpisodeLog,
     MethodSpec,
@@ -22,4 +26,6 @@ __all__ = [
     "run_batch",
     "generate_fig4_trajectories",
     "generate_fig5_snapshots",
+    "generate_fig6_realtime_curves",
+    "METHOD_COLORS",
 ]

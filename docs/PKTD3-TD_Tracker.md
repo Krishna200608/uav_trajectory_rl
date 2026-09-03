@@ -1228,4 +1228,16 @@ places against an independent hand calculation.
 - No pre-existing cache files were affected in `results/m14_cache/` as the directory was clean.
 
 ---
+
+## M14b — Real-Time LoS Probability & Transmission Rate Curves (Paper Fig. 6 Analog)
+
+**Status: Done (verified).** Commit corresponds to M14b figure module (`src/uav_trajectory_rl/evaluation/figures_6.py`) and unified driver script (`scripts/generate_m14_figures.py`). Generates 2-subplot real-time curves comparing all 5 methods (`results/figures/fig6_realtime_curves.png`).
+
+### Design Decisions & Assumptions
+1. **5-Method Comparative Overlay (No MATLAB Curve):** Paper Fig. 6 plotted a Python vs. MATLAB cross-validation for PKTD3-TD alone. In this reproduction, there is no MATLAB implementation; both subplots ((a) LoS Probability and (b) Transmission Rate) overlay all 5 methods at seed 0, providing a direct visual benchmark across the entire method suite.
+2. **Zero Harness Changes:** `EpisodeLog` already captured `los_probabilities` and `transmission_rates_bps` per step. No schema or harness changes were required.
+3. **Variable Episode Lengths:** Each method's curve is plotted for its actual flight duration (`steps_taken`) without padding or extrapolation (e.g. TDPK completes at step 75, Greedy and learned baselines run 200 steps).
+4. **Visual Consistency:** Centralized a standard color palette (`METHOD_COLORS`) mapping TDPK (blue), Greedy (green), Dueling DQL (purple), PPO (orange), and PKTD3-TD (red) across both subplots and downstream M14 figures.
+
+---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
