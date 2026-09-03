@@ -166,7 +166,7 @@ uav_trajectory_rl/
   - [x] M14b -- Real-time LoS probability & transmission rate curves (Fig. 6 analog; generated, verified)
   - [x] M14c -- Kernel-density flight distributions (Fig. 7 analog; generated, verified)
   - [x] M14d -- Performance sweep vs. number of users k (Fig. 8 analog; generated, verified)
-  - [ ] M14e-f -- Remaining figure/table generation scripts
+  - [x] M14e -- Performance sweep vs. user mobility speed (Fig. 9 analog; generated, verified)
 
 ### Detailed module tracking
 
@@ -191,7 +191,7 @@ uav_trajectory_rl/
 | M14b | `evaluation/figures_6.py` | Real-time LoS probability & transmission rate curves (Fig. 6) | Done (verified). Generates 2-subplot real-time curves comparing all 5 methods at seed 0. |
 | M14c | `evaluation/figures_7.py` | Kernel-density flight distributions (Fig. 7) | Done (verified). Generates 5-method 2-D position KDE grid (Fig. 7a) and altitude/user KDE (Fig. 7b) across 10 flights. |
 | M14d | `evaluation/figures_8.py` | Sweep vs. Number of Users k (Fig. 8) | Done (verified). 4-panel sweep over k in [10..20] (TDPK/Greedy swept with +/-1 std; PPO/DuelingDQL/PKTD3-TD ref at k=10). |
-| M14e-f | Evaluation | Remaining plotting scripts (Fig. 9) | Scheduled next |
+| M14e | `evaluation/figures_9.py` | Sweep vs. User Mobility Speed v_mob (Fig. 9) | Done (verified). 4-panel sweep over v_mob in (2, 4, 6, 8, 10, 12) m/s for all 5 methods with OOD annotation. |
 
 Full parameter grounding, paper corrections, and review notes: [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md)
 

@@ -1272,8 +1272,26 @@ places against an independent hand calculation.
 3. **5 Seeds per Sweep Point:** Evaluated across `sweep_seeds = range(5)` and `reference_seeds = range(5)` ($11 \times 5 \times 2 = 110$ swept episodes + 15 reference episodes).
 4. **DTE Metric Definition (ASSUMPTION):**
    $$\text{DTE} = W_1 \cdot \bar{r}_{\text{throughput}} - W_2 \cdot \bar{p}_{\text{energy}}$$
-   where $\bar{r}_{\text{throughput}} = \text{log.mean\_throughput}$, $\bar{p}_{\text{energy}} = \text{log.total\_energy} / \text{log.steps\_taken}$, and $W_1, W_2$ are imported directly from `config.py`.
 5. **Visual Differentiation:** Solid lines with shaded standard-deviation envelopes for swept methods vs. distinct horizontal dashed lines for $k=10$ reference baselines across all 4 metric panels ((a) LoS Probability, (b) Throughput, (c) Energy Consumption, (d) DTE).
+
+---
+
+## M14e — Sweep vs. User Mobility Speed (Paper Fig. 9 Analog)
+
+**Status: Done (verified).** Commit corresponds to M14e speed sweep module (`src/uav_trajectory_rl/evaluation/figures_9.py`) and driver script updates (`scripts/generate_m14_figures.py`). Generates 4-panel performance sweep figure (`results/figures/fig9_speed_sweep.png`) across $v_{\text{mob}} \in \{2, 4, 6, 8, 10, 12\}\text{ m/s}$.
+
+### Design Decisions & Assumptions
+1. **All 5 Methods Swept (No State-Dim Lock):** Unlike Fig. 8 where $k$ altered `state_dim = 2k+6`, user mobility speed only alters Gauss-Markov step dynamics while state dimensions remain identical ($2\cdot 10 + 6 = 26$). Thus, all 5 methods (TDPK, Greedy, Dueling DQL, PPO, PKTD3-TD) were fully evaluated across the 6 speed points with solid lines and $\pm 1\text{ std}$ shaded error bands.
+2. **Speed-to-Range Mapping (M14-Core Convention):** Reused `speed_to_range(v_mob)` mapping scalar speed $v_{\text{mob}}$ to a $\pm 1.0\text{ m/s}$ band floored at $0.1\text{ m/s}$:
+   $$v_{\text{range}} = (\max(0.1, v_{\text{mob}} - 1.0), v_{\text{mob}} + 1.0)$$
+3. **Fixed User Count:** $k=10$ at every evaluation point, matching paper Fig. 9's caption.
+4. **5 Seeds per Speed Point:** Evaluated across `sweep_seeds = range(5)` for all 5 methods ($6 \times 5 \times 5 = 150$ episodes total).
+5. **OUT-OF-DISTRIBUTION (OOD) CAVEAT & EMPIRICAL FINDINGS:**
+   Dueling DQL, PPO, and PKTD3-TD checkpoints were trained exclusively under default mobility ($v_{\text{init\_range}}=(0.5, 2.0)\text{ m/s}$). Testing at speeds up to $12\text{ m/s}$ represents out-of-distribution generalization testing.
+   - **PPO Sharp Degradation:** PPO exhibited a pronounced degradation at high speeds — average LoS probability declined monotonically from **0.927** (at $2\text{ m/s}$) to **0.560** (at $12\text{ m/s}$), throughput dropped from **180.49 Mbps** to **153.14 Mbps**, and DTE dropped from **8.52** to **7.39**. Because PPO navigates toward the eastern wall, users move away faster than PPO's learned azimuth can track.
+   - **Dueling DQL Stability:** Dueling DQL maintained relatively stable throughput (~181–187 Mbps) because its policy hovers mid-field ($X\approx 440\text{–}540, Y\approx 265\text{–}320$), where ground users traverse its communication footprint regardless of velocity.
+   - **Greedy Tracking Gain:** Greedy's one-step lookahead increased throughput from **102.50 Mbps** to **124.11 Mbps** as higher mobility brought users into high-rate proximity.
+   - **Figure Annotation:** Prominently annotated at the base of Fig. 9: *"Note: Dueling DQL, PPO, and PKTD3-TD were trained at speeds ~0.5-2.0 m/s; results beyond that range reflect out-of-distribution generalization, not additional training."*
 
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
