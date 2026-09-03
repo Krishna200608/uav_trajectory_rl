@@ -133,17 +133,20 @@ def generate_fig7a_uav_position_density(
         color = METHOD_COLORS.get(method_name, "navy")
 
         is_degenerate = False
+        near_zero_variance = False
         density = None
 
         # Check for degenerate covariance or near-zero variance
         if len(xy) < 3 or np.any(np.var(xy, axis=0) < 1e-5):
             is_degenerate = True
+            near_zero_variance = True
         else:
             try:
                 kde = scipy.stats.gaussian_kde(xy.T)
                 density = kde(grid_coords).reshape(xx.shape)
             except (np.linalg.LinAlgError, ValueError):
                 is_degenerate = True
+                near_zero_variance = False
 
         if not is_degenerate and density is not None:
             cs = ax.contourf(xx, yy, density, levels=15, cmap="viridis")
@@ -153,9 +156,13 @@ def generate_fig7a_uav_position_density(
             # Degenerate-covariance fallback (DESIGN DECISION #5)
             # Display actual sample positions with explicit notice rather than failing
             ax.scatter(xy[:, 0], xy[:, 1], s=12, alpha=0.4, color=color, label="Visited Positions")
+            if near_zero_variance:
+                fallback_reason = "insufficient movement for density estimate"
+            else:
+                fallback_reason = "near-collinear trajectory — density undefined"
             ax.set_title(
-                f"{method_name} (insufficient movement for density estimate)",
-                fontsize=10.5,
+                f"{method_name} ({fallback_reason})",
+                fontsize=10.0,
                 fontweight="bold",
                 color="darkred",
             )

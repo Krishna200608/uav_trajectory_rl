@@ -14,6 +14,10 @@ from uav_trajectory_rl.evaluation.figures_7 import (
     generate_fig7a_uav_position_density,
     generate_fig7b_altitude_and_user_density,
 )
+from uav_trajectory_rl.evaluation.figures_8 import (
+    _compute_dte,
+    generate_fig8_user_sweep,
+)
 from uav_trajectory_rl.evaluation.harness import (
     EpisodeLog,
     MethodSpec,
@@ -33,5 +37,7 @@ __all__ = [
     "generate_fig6_realtime_curves",
     "generate_fig7a_uav_position_density",
     "generate_fig7b_altitude_and_user_density",
+    "generate_fig8_user_sweep",
+    "_compute_dte",
     "METHOD_COLORS",
 ]

@@ -1258,4 +1258,22 @@ places against an independent hand calculation.
    This was confirmed to trigger as designed in the live run without raising an unhandled exception.
 
 ---
+
+## M14d — Sweep vs. Number of Users (Paper Fig. 8 Analog)
+
+**Status: Done (verified).** Commit corresponds to M14d sweep module (`src/uav_trajectory_rl/evaluation/figures_8.py`), label refinement in `figures_7.py`, and driver script updates (`scripts/generate_m14_figures.py`). Generates 4-panel performance sweep figure (`results/figures/fig8_user_sweep.png`) across $k \in [10, 20]$.
+
+### Refinement Note: `figures_7.py` Fallback Label
+- Distinguishes marginal near-zero variance ($\text{var} < 10^{-5}$, e.g. stationary PKTD3-TD: `"insufficient movement for density estimate"`) from singular joint covariance with non-zero marginal variance (e.g. collinear TDPK trajectories: `"near-collinear trajectory — density undefined"`).
+
+### Design Decisions & Assumptions
+1. **Swept Methods (TDPK and Greedy, $k \in [10..20]$):** Both algorithms are heuristic controllers independent of neural network state dimension; swept across 11 discrete user counts ($k = 10, 11, \dots, 20$) with $\pm 1\text{ std}$ shaded error bands across seeds.
+2. **Fixed Reference Methods (Dueling DQL, PPO, PKTD3-TD at $k=10$):** Neural network baselines and PKTD3-TD have fixed state dimensions ($\text{state\_dim} = 2 \cdot 10 + 6 = 26$) tied to their $k=10$ checkpoints. Plotted as horizontal dashed reference lines (`linestyle="--"`) across the $k$-axis labeled `"(ref, k=10 only, not retrained)"` to prevent misinterpretation as an active trend.
+3. **5 Seeds per Sweep Point:** Evaluated across `sweep_seeds = range(5)` and `reference_seeds = range(5)` ($11 \times 5 \times 2 = 110$ swept episodes + 15 reference episodes).
+4. **DTE Metric Definition (ASSUMPTION):**
+   $$\text{DTE} = W_1 \cdot \bar{r}_{\text{throughput}} - W_2 \cdot \bar{p}_{\text{energy}}$$
+   where $\bar{r}_{\text{throughput}} = \text{log.mean\_throughput}$, $\bar{p}_{\text{energy}} = \text{log.total\_energy} / \text{log.steps\_taken}$, and $W_1, W_2$ are imported directly from `config.py`.
+5. **Visual Differentiation:** Solid lines with shaded standard-deviation envelopes for swept methods vs. distinct horizontal dashed lines for $k=10$ reference baselines across all 4 metric panels ((a) LoS Probability, (b) Throughput, (c) Energy Consumption, (d) DTE).
+
+---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
