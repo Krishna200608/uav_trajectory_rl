@@ -1240,4 +1240,22 @@ places against an independent hand calculation.
 4. **Visual Consistency:** Centralized a standard color palette (`METHOD_COLORS`) mapping TDPK (blue), Greedy (green), Dueling DQL (purple), PPO (orange), and PKTD3-TD (red) across both subplots and downstream M14 figures.
 
 ---
+
+## M14c — Kernel-Density Flight Distributions (Paper Fig. 7 Analog)
+
+**Status: Done (verified).** Commit corresponds to M14c figure module (`src/uav_trajectory_rl/evaluation/figures_7.py`), `scipy>=1.10` dependency addition, and driver script updates (`scripts/generate_m14_figures.py`). Generates 5-method 2-D position KDE grid (`results/figures/fig7a_uav_position_density.png`) and altitude overlay / user position KDE (`results/figures/fig7b_altitude_and_user_density.png`) across 10 repeated flights.
+
+### Design Decisions & Assumptions
+1. **Extended to All 5 Methods (Fig. 7(a) Analog):** Rather than only comparing PKTD3-TD and Dueling DQL (paper Fig. 7(a)-(c)), the 2-D KDE analysis covers all 5 methods in a 2x3 subplot grid (5 active + 1 hidden). This transparently displays the spatial coverage of TDPK, Greedy, Dueling DQL, and PPO alongside PKTD3-TD's non-convergence.
+2. **10 Flights Protocol:** Evaluated across `seeds=range(10)` (seeds 0 through 9) with $k=10$ and default $v_{\text{init\_range}}$, matching the paper's 10-flight sample size. All steps across all 10 flights are flattened into combined spatial distributions.
+3. **Split Across Two Output Files:** To avoid overcrowded 4-panel figures, separated into:
+   - `fig7a_uav_position_density.png`: 5-method 2-D position KDE comparison.
+   - `fig7b_altitude_and_user_density.png`: 1-D altitude KDE curves overlay for all 5 methods (left) and 2-D ground user position KDE (right).
+4. **User Position Reference Method (TDPK):** User Gauss-Markov mobility depends only on environment seed and step count, not the UAV policy. Ground user positions are extracted from the 10 flights of TDPK to avoid redundant quintuple-counting.
+5. **Degenerate-Covariance Handling (ASSUMPTION/ROBUSTNESS NOTE):** Because PKTD3-TD remains locked at $Q_{\text{START}}=(0, 0, 50)$ throughout all steps, its positional variance is zero ($\text{var} < 10^{-5}$), causing standard `scipy.stats.gaussian_kde` to fail with `numpy.linalg.LinAlgError`. The implementation explicitly detects degenerate/singular covariance and falls back to:
+   - Fig. 7(a): Scatter plot of visited samples labeled `"(insufficient movement for density estimate)"`.
+   - Fig. 7(b): Vertical dashed line at constant flight altitude ($50.0\text{ m}$) labeled `"PKTD3-TD (constant 50.0m)"`.
+   This was confirmed to trigger as designed in the live run without raising an unhandled exception.
+
+---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*

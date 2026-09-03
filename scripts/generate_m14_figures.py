@@ -11,6 +11,9 @@ Covers:
         - results/figures/fig5_snapshots_pktd3-td.png
     - M14b:
         - results/figures/fig6_realtime_curves.png (LoS probability & transmission rate vs. time slot)
+    - M14c:
+        - results/figures/fig7a_uav_position_density.png (UAV xy-position 2-D KDE across 10 flights)
+        - results/figures/fig7b_altitude_and_user_density.png (UAV altitude 1-D KDE & user xy-position 2-D KDE)
 """
 
 from uav_trajectory_rl.evaluation.figures_4_5 import (
@@ -21,6 +24,10 @@ from uav_trajectory_rl.evaluation.figures_4_5 import (
 from uav_trajectory_rl.evaluation.figures_6 import (
     generate_fig6_realtime_curves,
 )
+from uav_trajectory_rl.evaluation.figures_7 import (
+    generate_fig7a_uav_position_density,
+    generate_fig7b_altitude_and_user_density,
+)
 
 
 def main():
@@ -29,20 +36,30 @@ def main():
     print("=" * 70)
 
     # --- M14a: Fig. 4 Trajectory comparison ---
-    print("\n[1/3] Generating Fig. 4: 3-D flight trajectory comparison...")
+    print("\n[1/5] Generating Fig. 4: 3-D flight trajectory comparison...")
     fig4_path = generate_fig4_trajectories()
     print(f"[OK] Fig. 4: {fig4_path} ({fig4_path.stat().st_size} bytes)")
 
     # --- M14a: Fig. 5 Snapshots for each method ---
-    print("\n[2/3] Generating Fig. 5: Time-slot snapshots for all 5 methods...")
+    print("\n[2/5] Generating Fig. 5: Time-slot snapshots for all 5 methods...")
     for method_name in DEFAULT_METHODS:
         fig5_path = generate_fig5_snapshots(method_name)
         print(f"[OK] Fig. 5 ({method_name}): {fig5_path} ({fig5_path.stat().st_size} bytes)")
 
     # --- M14b: Fig. 6 Real-time LoS and Rate curves ---
-    print("\n[3/3] Generating Fig. 6: Real-time LoS probability & transmission rate...")
+    print("\n[3/5] Generating Fig. 6: Real-time LoS probability & transmission rate...")
     fig6_path = generate_fig6_realtime_curves()
     print(f"[OK] Fig. 6: {fig6_path} ({fig6_path.stat().st_size} bytes)")
+
+    # --- M14c: Fig. 7(a) UAV Position Density ---
+    print("\n[4/5] Generating Fig. 7(a): UAV position kernel density (10 flights)...")
+    fig7a_path = generate_fig7a_uav_position_density()
+    print(f"[OK] Fig. 7(a): {fig7a_path} ({fig7a_path.stat().st_size} bytes)")
+
+    # --- M14c: Fig. 7(b) Altitude & User Density ---
+    print("\n[5/5] Generating Fig. 7(b): Altitude density & user position density (10 flights)...")
+    fig7b_path = generate_fig7b_altitude_and_user_density()
+    print(f"[OK] Fig. 7(b): {fig7b_path} ({fig7b_path.stat().st_size} bytes)")
 
     print("\n" + "=" * 70)
     print("All M14 figures successfully generated.")
