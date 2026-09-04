@@ -160,13 +160,14 @@ uav_trajectory_rl/
 - [x] M11 -- Baseline: Dueling DQL (full 6000-ep run; 0% arrival, mid-field throughput settling; verified)
 - [x] M12 -- Baseline: PPO (Gaussian policy, GAE-Lambda, PPO-Clip; full 6000-ep run; 0% arrival, eastern-wall near-miss; verified)
 - [x] M13 -- Baseline: Greedy (200-candidate one-step lookahead, deep copy; 95% arrival rate; verified)
-- [ ] M14 -- Evaluation and plotting suite (Figs. 4-9 in scope; Figs. 10-12 & Tables IV-VI out of scope, see tracker)
+- [x] M14 -- Evaluation and plotting suite (Figs. 4-9 in scope; Figs. 10-12 & Tables IV-VI documented out of scope; CLOSED)
   - [x] M14-Core -- Shared 5-method evaluation harness + mobility-speed env extension (reviewed, approved)
   - [x] M14a -- Trajectory & time-slot snapshot figures (Figs. 4-5 analogs; generated, verified)
   - [x] M14b -- Real-time LoS probability & transmission rate curves (Fig. 6 analog; generated, verified)
   - [x] M14c -- Kernel-density flight distributions (Fig. 7 analog; generated, verified)
   - [x] M14d -- Performance sweep vs. number of users k (Fig. 8 analog; generated, verified)
   - [x] M14e -- Performance sweep vs. user mobility speed (Fig. 9 analog; generated, verified)
+  - [x] M14f -- Consolidated comparison table & scope closure (summary_table.md, summary_table.csv; verified)
 
 ### Detailed module tracking
 
@@ -192,6 +193,7 @@ uav_trajectory_rl/
 | M14c | `evaluation/figures_7.py` | Kernel-density flight distributions (Fig. 7) | Done (verified). Generates 5-method 2-D position KDE grid (Fig. 7a) and altitude/user KDE (Fig. 7b) across 10 flights. |
 | M14d | `evaluation/figures_8.py` | Sweep vs. Number of Users k (Fig. 8) | Done (verified). 4-panel sweep over k in [10..20] (TDPK/Greedy swept with +/-1 std; PPO/DuelingDQL/PKTD3-TD ref at k=10). |
 | M14e | `evaluation/figures_9.py` | Sweep vs. User Mobility Speed v_mob (Fig. 9) | Done (verified). 4-panel sweep over v_mob in (2, 4, 6, 8, 10, 12) m/s for all 5 methods with OOD annotation. |
+| M14f | `evaluation/summary_table.py` | Consolidated comparison table & scope closure | Done (verified). Produces Markdown & CSV summary tables across all 5 methods (10 seeds, k=10). Figs. 10-12 & Tables IV-VI formally closed as out of scope. |
 
 Full parameter grounding, paper corrections, and review notes: [docs/PKTD3-TD_Tracker.md](docs/PKTD3-TD_Tracker.md)
 

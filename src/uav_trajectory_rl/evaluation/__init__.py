@@ -22,6 +22,10 @@ from uav_trajectory_rl.evaluation.figures_9 import (
     generate_fig9_speed_sweep,
     speed_to_range,
 )
+from uav_trajectory_rl.evaluation.summary_table import (
+    METHOD_BEHAVIOR,
+    generate_summary_table,
+)
 from uav_trajectory_rl.evaluation.harness import (
     EpisodeLog,
     MethodSpec,
@@ -43,7 +47,9 @@ __all__ = [
     "generate_fig7b_altitude_and_user_density",
     "generate_fig8_user_sweep",
     "generate_fig9_speed_sweep",
+    "generate_summary_table",
     "speed_to_range",
     "_compute_dte",
     "METHOD_COLORS",
+    "METHOD_BEHAVIOR",
 ]

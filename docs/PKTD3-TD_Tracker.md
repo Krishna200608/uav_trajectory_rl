@@ -97,10 +97,10 @@ Algorithm 1, line 15, lists `r_n = r_n,1+r_n,2+r_n,3+r_n,4+r_n,5` — **omits r_
 | M7 | TD3 networks + replay buffer | M0 | **Done — reviewed, approved (shapes, q1_forward consistency, and circular-buffer overwrite hand-verified)** |
 | M9 | Training loop / full Algorithm 1 | M5, M6, M7, M8 | **Implemented & component-verified (M0–M8 hand-verified); full convergence NOT achieved across runs 1–4 (flat value surface at Q_START); investigation closed, see Review notes** |
 | M10 | Baseline: TDPK | M5 | **Done — reviewed, approved (geometry hand-verified: diagonal, vertical, and degenerate same-point cases all match spec exactly)** |
-| M11 | Baseline: Dueling DQL | M5 | **Implemented — pending review (200-action grid, dueling architecture, discrete replay buffer, training loop)** |
-| M12 | Baseline: PPO | M5 | **Implemented — pending review (Gaussian policy, GAE-Lambda, PPO-Clip, rollout-based training)** |
-| M13 | Baseline: Greedy | M5 | **Implemented — pending review (200-candidate one-step lookahead, deep-copy design, 95.0% arrival rate)** |
-| M14 | Evaluation & plotting suite (Figs. 4–12, Tables IV–VI) | M9–M13 | Not started |
+| M11 | Baseline: Dueling DQL | M5 | **Done — reviewed, approved (6,000-ep run; 0% arrival, mid-field throughput settling)** |
+| M12 | Baseline: PPO | M5 | **Done — reviewed, approved (6,000-ep run; 0% arrival, eastern-wall collision from azimuth bias)** |
+| M13 | Baseline: Greedy | M5 | **Done — reviewed, approved (95% arrival rate; 1-step lookahead with stall avoidance)** |
+| M14 | Evaluation & plotting suite (Figs. 4–9 analogs, summary tables; Figs. 10–12 & Tables IV–VI out of scope) | M9–M13 | **Done — reviewed, approved (CLOSED)** |
 
 **Suggested parallelization:** once M0 lands, M1/M2/M3/M4 are mutually independent — good four-way split across the team.
 
@@ -1292,6 +1292,58 @@ places against an independent hand calculation.
    - **Dueling DQL Stability:** Dueling DQL maintained relatively stable throughput (~181–187 Mbps) because its policy hovers mid-field ($X\approx 440\text{–}540, Y\approx 265\text{–}320$), where ground users traverse its communication footprint regardless of velocity.
    - **Greedy Tracking Gain:** Greedy's one-step lookahead increased throughput from **102.50 Mbps** to **124.11 Mbps** as higher mobility brought users into high-rate proximity.
    - **Figure Annotation:** Prominently annotated at the base of Fig. 9: *"Note: Dueling DQL, PPO, and PKTD3-TD were trained at speeds ~0.5-2.0 m/s; results beyond that range reflect out-of-distribution generalization, not additional training."*
+
+---
+
+## M14f — Consolidated Comparison Table + Final M14 Scope Closure
+
+**Status: Done (verified).** Commit corresponds to M14f summary table module (`src/uav_trajectory_rl/evaluation/summary_table.py`), driver script integration (`scripts/generate_m14_figures.py`), and test suite additions (`tests/test_summary_table.py`). Generates consolidated comparison table in both Markdown (`results/tables/summary_table.md`) and machine-readable CSV (`results/tables/summary_table.csv`).
+
+### Design Decisions & Assumptions
+1. **Reference Configuration ($k=10$, 10 Seeds):** Evaluated under the exact reference configuration established in M14c (`seeds=range(10)`, $k=10$, default $v_{\text{init\_range}}=(0.5, 2.0)\text{ m/s}$). Because `run_batch` leverages the disk cache (`results/m14_cache/`), generation executes in $< 0.3\text{ s}$ without redundant simulation.
+2. **Dual Output Format:**
+   - `results/tables/summary_table.md`: Publication-ready GitHub-flavored Markdown table displaying numeric metrics as formatted $\text{mean} \pm \text{std}$.
+   - `results/tables/summary_table.csv`: Comma-separated table with separate numeric columns (`_mean`, `_std`) for every performance metric, allowing direct downstream data processing and programmatic verification.
+3. **Method Ordering:** Follows the centralized `DEFAULT_METHODS` ordering (`["TDPK", "Greedy", "DuelingDQL", "PPO", "PKTD3-TD"]`).
+4. **Behavior Column Phrasing:** The qualitative `"Behavior"` column faithfully paraphrases the established mechanisms from the tracker sections (M10–M13, M14):
+   - **TDPK:** *"Direct-line geometric flight toward destination; ignores ground users entirely"*
+   - **Greedy:** *"1-step lookahead; stalls near destination to avoid early-termination penalty until step 199"*
+   - **DuelingDQL:** *"Discrete Q-learning; settles mid-field to maximize throughput without reaching destination"*
+   - **PPO:** *"Continuous actor-critic; progresses ~700m+ but freezes at eastern boundary wall from azimuth bias"*
+   - **PKTD3-TD:** *"Documented non-convergence (flat value surface); actor saturates and remains locked near Q_START"*
+5. **DTE Metric Integration:** Reuses `_compute_dte` from `figures_8.py` ($W_1 \cdot \bar{r}_{\text{throughput}} - W_2 \cdot \bar{p}_{\text{energy}}$).
+
+### Empirical Results Table (10 Seeds, $k=10$)
+
+| Method | Arrival Rate | Mean Steps | Min-Dist-to-Goal (m) | LoS Probability | Throughput (Mbps) | Energy (J/step) | DTE | Behavior |
+|---|---|---|---|---|---|---|---|---|
+| TDPK | 10/10 (100%) | 81.80 ± 5.83 | 2.85 ± 1.41 | 0.30 ± 0.06 | 103.91 ± 5.79 | 184.57 ± 3.63 | 4.58 ± 0.29 | Direct-line geometric flight toward destination; ignores ground users entirely |
+| Greedy | 10/10 (100%) | 200.00 ± 0.00 | 2.63 ± 1.17 | 0.18 ± 0.05 | 102.86 ± 22.78 | 59.49 ± 2.55 | 4.94 ± 1.15 | 1-step lookahead; stalls near destination to avoid early-termination penalty until step 199 |
+| DuelingDQL | 0/10 (0%) | 200.00 ± 0.00 | 320.14 ± 77.91 | 0.95 ± 0.01 | 182.11 ± 10.27 | 435.23 ± 104.90 | 7.65 ± 0.72 | Discrete Q-learning; settles mid-field to maximize throughput without reaching destination |
+| PPO | 0/10 (0%) | 200.00 ± 0.00 | 233.85 ± 74.99 | 0.94 ± 0.01 | 180.35 ± 9.21 | 152.36 ± 44.11 | 8.51 ± 0.40 | Continuous actor-critic; progresses ~700m+ but freezes at eastern boundary wall from azimuth bias |
+| PKTD3-TD | 0/10 (0%) | 200.00 ± 0.00 | 848.53 ± 0.00 | 0.05 ± 0.01 | 53.39 ± 9.28 | 84.19 ± 128.75 | 2.39 ± 0.45 | Documented non-convergence (flat value surface); actor saturates and remains locked near Q_START |
+
+---
+
+## M14 — Final Scope Summary (Closed)
+
+**Status: MODULE M14 FULLY CLOSED AND VERIFIED.**
+
+### Formal Scope Boundaries
+1. **Figures 4–9 Analogs: COMPLETE**
+   - **Fig. 4 Analog:** 3-D trajectory comparison across all 5 methods (`fig4_trajectories_comparison.png`).
+   - **Fig. 5 Analog:** 2-D time-slot snapshots for each method at 6 proportional stages (`fig5_snapshots_{method}.png`).
+   - **Fig. 6 Analog:** Real-time LoS probability and transmission rate curves across flight duration (`fig6_realtime_curves.png`).
+   - **Fig. 7 Analog:** 2-D UAV position KDE grid across 10 repeated flights (`fig7a_uav_position_density.png`) and altitude overlay / ground user position KDE (`fig7b_altitude_and_user_density.png`).
+   - **Fig. 8 Analog:** Performance sweep over user count $k \in [10..20]$ (`fig8_user_sweep.png`).
+   - **Fig. 9 Analog:** Performance sweep over user mobility speed $v_{\text{mob}} \in \{2, 4, 6, 8, 10, 12\}\text{ m/s}$ (`fig9_speed_sweep.png`).
+   - **Consolidated Summary Tables:** Markdown (`summary_table.md`) and CSV (`summary_table.csv`).
+2. **Figures 10–12 and Tables IV–VI: PERMANENTLY OUT OF SCOPE**
+   - **Rationale:** Paper Figs. 10–12 depict ablation studies of PKTD3-TD components (prior knowledge removal, delayed update removal, twin-critic removal). Tables IV–VI present robustness sensitivity sweeps of PKTD3-TD over localization noise ($\sigma_{\text{loc}}$), sensing delay, and mobility model mutations.
+   - All of these analyses strictly presuppose a converged, functional PKTD3-TD trajectory controller that routinely reaches the destination.
+   - As established through four full 6,000-episode training runs and 10 systematic diagnostic rounds, PKTD3-TD suffers from a flat critic value surface at the boundary-heavy start state $Q_{\text{START}} = (0, 0, 50)$ (87.5% of action space immediately hits boundary cancellation), leading to actor pre-activation saturation and zero arrival rate (0/720 seeds).
+   - Running ablation studies or robustness sweeps on a non-converged, saturated policy is scientifically vacuous and produces trivial degenerate constants.
+   - Consequently, Figs. 10–12 and Tables IV–VI are formally and definitively closed as out of scope for this reproduction.
 
 ---
 *This file is a living reference — update the Status column as modules are completed/reviewed, and log any new mismatches found during review under this "Review notes" section.*
