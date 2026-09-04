@@ -1323,6 +1323,10 @@ places against an independent hand calculation.
 | PPO | 0/10 (0%) | 200.00 ± 0.00 | 233.85 ± 74.99 | 0.94 ± 0.01 | 180.35 ± 9.21 | 152.36 ± 44.11 | 8.51 ± 0.40 | Continuous actor-critic; progresses ~700m+ but freezes at eastern boundary wall from azimuth bias |
 | PKTD3-TD | 0/10 (0%) | 200.00 ± 0.00 | 848.53 ± 0.00 | 0.05 ± 0.01 | 53.39 ± 9.28 | 84.19 ± 128.75 | 2.39 ± 0.45 | Documented non-convergence (flat value surface); actor saturates and remains locked near Q_START |
 
+> **Note on PKTD3-TD's energy variance:** its high energy std (relative to mean) reflects the non-convergent actor saturating toward either steep-climb (`λ≈0`) or steep-descent (`λ≈π`) commands depending on per-seed state, producing large sign-flipped climb-power terms even though the UAV's position never changes in any seed (energy is charged for commanded motion, not realized displacement). This is a documented consequence of the already-closed training-instability investigation, not a new defect.
+
+> **Note on sample size:** this table uses the same 10-seed sample as all other M14 figures for internal consistency across the evaluation suite. This differs from M11/M12's original 30-seed deterministic evaluation (310.6m/263.1m for Dueling DQL/PPO respectively); both samples are independently verified and consistent with each other, the difference reflects sample size, not a discrepancy.
+
 ---
 
 ## M14 — Final Scope Summary (Closed)
