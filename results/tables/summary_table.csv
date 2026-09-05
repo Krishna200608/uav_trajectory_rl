@@ -1,0 +1,6 @@
+method,arrival_rate_str,arrival_count,total_episodes,arrival_rate,steps_mean,steps_std,min_dist_to_goal_mean,min_dist_to_goal_std,los_mean,los_std,throughput_mbps_mean,throughput_mbps_std,energy_mean,energy_std,dte_mean,dte_std,behavior
+TDPK,10/10 (100%),10,10,1.0,81.8,5.8275,2.8472,1.405,0.2958,0.0558,103.9056,5.7888,184.568,3.6275,4.5801,0.286,Direct-line geometric flight toward destination; ignores ground users entirely
+Greedy,10/10 (100%),10,10,1.0,200.0,0.0,2.6291,1.1661,0.1766,0.0478,102.8601,22.7809,59.4883,2.5544,4.9447,1.1461,1-step lookahead; stalls near destination to avoid early-termination penalty until step 199
+DuelingDQL,0/10 (0%),0,10,0.0,200.0,0.0,320.1355,77.914,0.9514,0.008,182.1079,10.2721,435.2318,104.9031,7.6546,0.7214,Discrete Q-learning; settles mid-field to maximize throughput without reaching destination
+PPO,0/10 (0%),0,10,0.0,200.0,0.0,233.8463,74.9874,0.9384,0.0142,180.3475,9.2138,152.3561,44.1064,8.5095,0.4007,Continuous actor-critic; progresses ~700m+ but freezes at eastern boundary wall from azimuth bias
+PKTD3-TD,0/10 (0%),0,10,0.0,200.0,0.0,848.5281,0.0,0.0532,0.0054,53.3899,9.2752,84.1948,128.7545,2.3888,0.4465,Documented non-convergence (flat value surface); actor saturates and remains locked near Q_START

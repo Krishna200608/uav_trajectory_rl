@@ -1327,6 +1327,8 @@ places against an independent hand calculation.
 
 > **Note on sample size:** this table uses the same 10-seed sample as all other M14 figures for internal consistency across the evaluation suite. This differs from M11/M12's original 30-seed deterministic evaluation (310.6m/263.1m for Dueling DQL/PPO respectively); both samples are independently verified and consistent with each other, the difference reflects sample size, not a discrepancy.
 
+> **Git Tracking Fix Note:** Due to a blanket `results/` and `*.png` pattern in `.gitignore` originating in M0, the final deliverable files under `results/figures/` and `results/tables/` were silently excluded from earlier M14a–M14f commits until hotfixed here; git tracking for all 11 figure PNGs and 2 summary tables formally begins at this commit.
+
 ---
 
 ## M14 — Final Scope Summary (Closed)

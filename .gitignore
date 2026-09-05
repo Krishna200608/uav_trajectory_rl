@@ -30,7 +30,8 @@ htmlcov/
 # Training checkpoints, results, figures & logs
 runs/
 checkpoints/
-results/
+results/*
+!results/figures/
+!results/tables/
 logs/
-*.png
 *.log

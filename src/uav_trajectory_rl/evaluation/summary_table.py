@@ -144,6 +144,21 @@ def generate_summary_table(
         )
 
     md_lines.append("")
+    md_lines.append(
+        "> **Note on PKTD3-TD's energy variance:** its high energy std (relative to mean) reflects the non-convergent "
+        "actor saturating toward either steep-climb (`λ≈0`) or steep-descent (`λ≈π`) commands depending on per-seed "
+        "state, producing large sign-flipped climb-power terms even though the UAV's position never changes in any "
+        "seed (energy is charged for commanded motion, not realized displacement). This is a documented consequence "
+        "of the already-closed training-instability investigation, not a new defect."
+    )
+    md_lines.append("")
+    md_lines.append(
+        "> **Note on sample size:** this table uses the same 10-seed sample as all other M14 figures for internal "
+        "consistency across the evaluation suite. This differs from M11/M12's original 30-seed deterministic "
+        "evaluation (310.6m/263.1m for Dueling DQL/PPO respectively); both samples are independently verified and "
+        "consistent with each other, the difference reflects sample size, not a discrepancy."
+    )
+    md_lines.append("")
     md_file = out_path / "summary_table.md"
     md_file.write_text("\n".join(md_lines), encoding="utf-8")
 
